@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="slim_ros" type="main_slim.py" name="slim" output="screen"/>
+</launch>
