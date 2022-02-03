@@ -29,12 +29,12 @@
 
 import rospy
 
-from walkgen_ros.walkgen_node import WalkgenNode
+from surface_planner_ros.surface_planner_node import SurfacePlannerNode
 
 
 def main(args=None):
-    rospy.init_node('walkgen')
-    walkgen = WalkgenNode()
+    rospy.init_node('surface_planner')
+    surface_planner = SurfacePlannerNode()
     rospy.spin()
 
 

@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>slim_ros</name>
+  <name>surface_planner_ros</name>
   <version>0.0.0</version>
-  <description>ROS package for slim_ros</description>
+  <description>ROS package for surface_planner_ros</description>
   <maintainer email="jshim@ed.ac.uk">Jaehyun Shim</maintainer>
   <license>BSD</license>
   <url type="repository">https://github.com/JaehyunShim/memmo_planner_ros</url>

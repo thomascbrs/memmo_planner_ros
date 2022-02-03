@@ -31,8 +31,10 @@ import rospy
 from trajectory_msgs.msg import MultiDOFJointTrajectory
 from visualization_msgs.msg import MarkerArray
 
+import walkgen.SurfacePlanner as SurfacePlanner
 
-class WalkgenNode():
+
+class SurfacePlannerNode():
 
     def __init__(self):
         # Planner output
@@ -44,23 +46,23 @@ class WalkgenNode():
         # self.onoff = True
 
         # ROS publishers and subscribers
-        self.filtered_hull_marker_array_pub = rospy.Subscriber(
-            'filtered_hull_marker_array', MarkerArray, self.filtered_hull_marker_array_callback, queue_size=10)
-        self.joint_swing_traj_pub = rospy.Publisher(
-            '~joint_swing_traj', MultiDOFJointTrajectory, queue_size=10)
+        self.hull_marker_array_sub = rospy.Subscriber(
+            'plane_seg/hull_marker_array', MarkerArray, self.hull_marker_array_callback, queue_size=10)
+        self.filtered_hull_marker_array_pub = rospy.Publisher(
+            'filtered_hull_marker_array', MarkerArray, queue_size=10)
 
         # ROS timer
-        self.timer = rospy.Timer(rospy.Duration(0.01), self.timer_callback)
+        self.timer = rospy.Timer(rospy.Duration(0.1), self.timer_callback)
 
-    def filtered_hull_marker_array_callback(self, data):
+    def hull_marker_array_callback(self, data):
         # Planner code
-        # self.swing_traj = walkgen(data)
+        # self.marker_array = surface_planner(data)
 
         # Turn on publishers
         self.onoff = True
 
     def timer_callback(self, event):
         if self.onoff == True:
-            self.joint_swing_traj_pub.publish(self.swing_traj)
+            self.filtered_hull_marker_array_pub.publish(self.marker_array)
         else:
             print("Waiting to receive convex patches.")

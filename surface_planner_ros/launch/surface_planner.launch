@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="surface_planner_ros" type="main.py" name="surface_planner" output="screen"/>
+</launch>

@@ -1,3 +1,0 @@
-<launch>
-  <node pkg="walkgen_ros" type="main_walkgen.py" name="walkgen" output="screen"/>
-</launch>

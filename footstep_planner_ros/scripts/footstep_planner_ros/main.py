@@ -29,12 +29,12 @@
 
 import rospy
 
-from slim_ros.slim_node import SlimNode
+from footstep_planner_ros.footstep_planner_node import FootstepPlannerNode
 
 
 def main(args=None):
-    rospy.init_node('slim')
-    slim = SlimNode()
+    rospy.init_node('footstep_planner')
+    footstep_planner = FootstepPlannerNode()
     rospy.spin()
 
 
