@@ -28,7 +28,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import rospy
-from trajectory_msgs.msg import MultiDOFJointTrajectory
+# from trajectory_msgs.msg import MultiDOFJointTrajectory
+from footstep_msgs.msg import FootstepTrajectory
 from visualization_msgs.msg import MarkerArray
 
 import walkgen.FootStepPlanner as FootStepPlanner
@@ -38,9 +39,16 @@ import walkgen.GaitManager as GaitManager
 class FootstepPlannerNode():
 
     def __init__(self):
+
+        # FootStepPlanner
+        # self._foostep_planner = FootStepPlanner(self._model, q)
+
+        # Gait manager
+        # self._gait_manager = GaitManager(self._model, q)
+
         # Planner output
         self.marker_array = MarkerArray()
-        self.swing_traj = MultiDOFJointTrajectory()
+        self.swing_traj = FootstepTrajectory()
 
         # Planner onoff switch
         self.onoff = False
@@ -50,7 +58,7 @@ class FootstepPlannerNode():
         self.filtered_hull_marker_array_pub = rospy.Subscriber(
             'filtered_hull_marker_array', MarkerArray, self.filtered_hull_marker_array_callback, queue_size=10)
         self.joint_swing_traj_pub = rospy.Publisher(
-            '~joint_swing_traj', MultiDOFJointTrajectory, queue_size=10)
+            '~joint_swing_traj', FootstepTrajectory, queue_size=10)
 
         # ROS timer
         self.timer = rospy.Timer(rospy.Duration(0.01), self.timer_callback)

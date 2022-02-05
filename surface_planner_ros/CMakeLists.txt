@@ -5,7 +5,8 @@ project(surface_planner_ros)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   # solo_planner
-  trajectory_msgs
+  footstep_msgs
+  # trajectory_msgs
   visualization_msgs
 )
 

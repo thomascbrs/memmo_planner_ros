@@ -11,6 +11,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>rospy</depend>
   <!-- <depend>solo_planner</depend> -->
-  <depend>trajectory_msgs</depend>
+  <depend>footstep_msgs</depend>
+  <!-- <depend>trajectory_msgs</depend> -->
   <depend>visualization_msgs</depend>
 </package>

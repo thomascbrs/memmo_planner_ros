@@ -1,17 +1,17 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>footstep_planner_ros</name>
+  <name>footstep_msgs</name>
   <version>0.0.0</version>
-  <description>ROS package for footstep_planner_ros</description>
+  <description>ROS package for footstep_msgs</description>
   <maintainer email="jshim@ed.ac.uk">Jaehyun Shim</maintainer>
   <license>BSD</license>
   <url type="repository">https://github.com/JaehyunShim/memmo_planner_ros</url>
   <author email="jshim@ed.ac.uk">Jaehyun Shim</author>
 
   <buildtool_depend>catkin</buildtool_depend>
-  <depend>rospy</depend>
-  <!-- <depend>solo_planner</depend> -->
-  <depend>footstep_msgs</depend>
-  <!-- <depend>trajectory_msgs</depend> -->
-  <depend>visualization_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <build_depend>message_generation</build_depend>
+  <build_export_depend>message_runtime</build_export_depend>
+  <exec_depend>message_runtime</exec_depend>
 </package>

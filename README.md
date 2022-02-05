@@ -10,6 +10,9 @@
 
 ## Run
 ```
-$ roslaunch solo_planner_ros slim.launch
-$ roslaunch solo_planner_ros slim_with_walkgen.launch
+# Surface Planner
+$ roslaunch surface_planner_ros surface_planner.launch
+
+# Footstep Planner
+$ roslaunch footstep_planner_ros footstep_planner.launch
 ```

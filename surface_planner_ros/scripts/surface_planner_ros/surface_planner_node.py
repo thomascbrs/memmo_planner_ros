@@ -27,8 +27,11 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import os
+
 import rospy
-from trajectory_msgs.msg import MultiDOFJointTrajectory
+# from trajectory_msgs.msg import MultiDOFJointTrajectory
+from footstep_msgs.msg import FootstepTrajectory
 from visualization_msgs.msg import MarkerArray
 
 import walkgen.SurfacePlanner as SurfacePlanner
@@ -37,9 +40,13 @@ import walkgen.SurfacePlanner as SurfacePlanner
 class SurfacePlannerNode():
 
     def __init__(self):
+
+        # config_file_path = os.path.dirname(os.path.abspath(__file__)) + "/config/params.yaml"
+        # self.surface_planner = SurfacePlanner(0.0, 0.0, config_file_path)
+
         # Planner output
         self.marker_array = MarkerArray()
-        self.swing_traj = MultiDOFJointTrajectory()
+        self.swing_traj = FootstepTrajectory()
 
         # Planner onoff switch
         self.onoff = False
@@ -50,6 +57,8 @@ class SurfacePlannerNode():
             'plane_seg/hull_marker_array', MarkerArray, self.hull_marker_array_callback, queue_size=10)
         self.filtered_hull_marker_array_pub = rospy.Publisher(
             'filtered_hull_marker_array', MarkerArray, queue_size=10)
+        self.joint_swing_traj_pub = rospy.Publisher(
+            '~joint_swing_traj', FootstepTrajectory, queue_size=10)
 
         # ROS timer
         self.timer = rospy.Timer(rospy.Duration(0.1), self.timer_callback)
