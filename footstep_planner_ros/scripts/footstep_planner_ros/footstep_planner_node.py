@@ -28,12 +28,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import rospy
-# from trajectory_msgs.msg import MultiDOFJointTrajectory
 from footstep_msgs.msg import FootstepTrajectory
 from visualization_msgs.msg import MarkerArray
 
-import walkgen.FootStepPlanner as FootStepPlanner
-import walkgen.GaitManager as GaitManager
+import walkgen.FootStepManager as FootStepManager
 
 
 class FootstepPlannerNode():
@@ -41,10 +39,7 @@ class FootstepPlannerNode():
     def __init__(self):
 
         # FootStepPlanner
-        # self._foostep_planner = FootStepPlanner(self._model, q)
-
-        # Gait manager
-        # self._gait_manager = GaitManager(self._model, q)
+        self.footstep_manager = FootStepManager()
 
         # Planner output
         self.marker_array = MarkerArray()
@@ -55,23 +50,23 @@ class FootstepPlannerNode():
         # self.onoff = True
 
         # ROS publishers and subscribers
-        self.filtered_hull_marker_array_pub = rospy.Subscriber(
+        self.filtered_hull_marker_array_sub = rospy.Subscriber(
             'filtered_hull_marker_array', MarkerArray, self.filtered_hull_marker_array_callback, queue_size=10)
-        self.joint_swing_traj_pub = rospy.Publisher(
-            '~joint_swing_traj', FootstepTrajectory, queue_size=10)
+        self.foot_swing_traj_pub = rospy.Publisher(
+            '~foot_swing_traj', FootstepTrajectory, queue_size=10)
 
         # ROS timer
         self.timer = rospy.Timer(rospy.Duration(0.01), self.timer_callback)
 
     def filtered_hull_marker_array_callback(self, data):
-        # Planner code
-        # self.swing_traj = walkgen(data)
+        # Compute filtered convex patches and footstep trajectories
+        self.swing_traj = self.footstep_manager.get_swing_traj(data)
 
         # Turn on publishers
         self.onoff = True
 
     def timer_callback(self, event):
         if self.onoff == True:
-            self.joint_swing_traj_pub.publish(self.swing_traj)
+            self.foot_swing_traj_pub.publish(self.swing_traj)
         else:
-            print("Waiting to receive convex patches.")
+            print("Waiting to receive filtered convex patches.")

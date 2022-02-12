@@ -30,7 +30,6 @@
 import os
 
 import rospy
-# from trajectory_msgs.msg import MultiDOFJointTrajectory
 from footstep_msgs.msg import FootstepTrajectory
 from visualization_msgs.msg import MarkerArray
 
@@ -41,8 +40,8 @@ class SurfacePlannerNode():
 
     def __init__(self):
 
-        # config_file_path = os.path.dirname(os.path.abspath(__file__)) + "/config/params.yaml"
-        # self.surface_planner = SurfacePlanner(0.0, 0.0, config_file_path)
+        # Surface planner
+        self.surface_planner = SurfacePlanner()
 
         # Planner output
         self.marker_array = MarkerArray()
@@ -57,15 +56,16 @@ class SurfacePlannerNode():
             'plane_seg/hull_marker_array', MarkerArray, self.hull_marker_array_callback, queue_size=10)
         self.filtered_hull_marker_array_pub = rospy.Publisher(
             'filtered_hull_marker_array', MarkerArray, queue_size=10)
-        self.joint_swing_traj_pub = rospy.Publisher(
-            '~joint_swing_traj', FootstepTrajectory, queue_size=10)
+        self.foot_swing_traj_pub = rospy.Publisher(
+            '~foot_swing_traj', FootstepTrajectory, queue_size=10)
 
         # ROS timer
         self.timer = rospy.Timer(rospy.Duration(0.1), self.timer_callback)
 
     def hull_marker_array_callback(self, data):
-        # Planner code
-        # self.marker_array = surface_planner(data)
+        # Compute filtered convex patches and footstep trajectories
+        self.marker_array = self.surface_planner.get_marker_array(data)
+        self.swing_traj = self.surface_planner.get_swing_traj(data)
 
         # Turn on publishers
         self.onoff = True
@@ -73,5 +73,6 @@ class SurfacePlannerNode():
     def timer_callback(self, event):
         if self.onoff == True:
             self.filtered_hull_marker_array_pub.publish(self.marker_array)
+            self.foot_swing_traj_pub.publish(self.swing_traj)
         else:
             print("Waiting to receive convex patches.")
