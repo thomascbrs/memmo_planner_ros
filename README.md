@@ -1,5 +1,7 @@
 # memmo_planner_ros
 
+Repository containing the ROS node for the SL1M surface planner.
+
 ## Prerequisites
 - Ubuntu 20.04
 - [rosdep](http://wiki.ros.org/rosdep)
