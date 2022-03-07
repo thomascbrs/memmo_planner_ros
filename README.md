@@ -21,5 +21,9 @@ $ roslaunch surface_planner_ros surface_planner.launch
 $ roslaunch footstep_planner_ros footstep_planner.launch
 
 # Memmo Teleop
+(Joystick)
 $ sudo ds4drv
+$ roslaunch memmo_teleop memmo_teleop_joystick.launch
+(Keyboard)
+$ rosrun memmo_teleop memmo_teleop_keyboard
 ```
