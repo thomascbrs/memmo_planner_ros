@@ -7,6 +7,10 @@
 - [Gurobi Optimizer](https://www.gurobi.com/downloads/)
 
 ## Installation
+```
+# Memmo Teleop
+$ sudo pip3 install ds4drv
+```
 
 ## Run
 ```
@@ -15,4 +19,7 @@ $ roslaunch surface_planner_ros surface_planner.launch
 
 # Footstep Planner
 $ roslaunch footstep_planner_ros footstep_planner.launch
+
+# Memmo Teleop
+$ sudo ds4drv
 ```

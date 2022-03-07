@@ -1,0 +1,19 @@
+memmo_teleop:
+  # Rewrite this chunk... Simplify using struct
+  lin_vel_x_limit: 0.5
+  lin_vel_x_step_size: 0.01
+
+  lin_vel_y_limit: 0.5
+  lin_vel_y_step_size: 0.01
+
+  lin_vel_z_limit: 0.5
+  lin_vel_z_step_size: 0.01
+
+  ang_vel_x_limit: 0.5
+  ang_vel_x_step_size: 0.10
+
+  ang_vel_y_limit: 0.5
+  ang_vel_y_step_size: 0.10
+
+  ang_vel_z_limit: 0.5
+  ang_vel_z_step_size: 0.10

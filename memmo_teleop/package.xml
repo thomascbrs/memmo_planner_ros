@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model
+  href="http://download.ros.org/schema/package_format3.xsd"
+  schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>memmo_teleop</name>
+  <version>0.0.0</version>
+  <description>ROS package for memmo teleop</description>
+  <maintainer email="sjh2808@gmail.com">Jaehyun Shim</maintainer>
+  <license>MIT</license>  <!-- TODO(JaehyunShim): Check what license will be used  -->
+  <url type="repository">https://github.com/JaehyunShim/memmo_planner_ros</url>
+  <author email="sjh2808@gmail.com">Jaehyun Shim</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>geometry_msgs</depend>
+  <depend>joy</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+
+</package>
