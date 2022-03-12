@@ -83,6 +83,7 @@ class SurfacePlannerNode():
             self._model = pinocchio.buildReducedModel(self._model, lockedJointIds, pinocchio.neutral(self._model))
         self._data = self._model.createData()
         self._ws_sub = WholeBodyStateSubscriber(self._model, robotStateTopic, frame_id=self._odomFrame)
+        self._tf_listener = tf.TransformListener()
         self._rot = pinocchio.Quaternion(np.array([0., 0., 0., 1.]))
         self._mMo = pinocchio.SE3(self._rot, np.zeros(3))
         self._oMb = pinocchio.SE3(self._rot, np.zeros(3))
