@@ -179,10 +179,10 @@ class SurfacePlannerNode():
                 sleep(1.) # Not working otherwise
                 worldMesh = self._params.path + self._params.stl
                 worldPose = self.surface_planner.worldPose
-                self._visualization_pub.publish_world(worldMesh, worldPose)
+                self._visualization_pub.publish_world(worldMesh, worldPose, frame_id=self._worldFrame)
 
                 surfaces = [np.array(value[0]).T for key,value in self.surface_planner._all_surfaces.items()]
-                self._visualization_pub.publish_surfaces(surfaces)
+                self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
 
         if self.planeseg:
             # Parameters for planeseg postprocessing.
@@ -281,8 +281,11 @@ class SurfacePlannerNode():
             t1 = clock()
             print("SL1M optimisation took [ms] : ", 1000 * (t1 - t0))
             if self._visualization:
-                self._visualization_pub.publish_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration )
-                self._visualization_pub.publish_fsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration)
+                t0 = clock()
+                self._visualization_pub.publish_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                self._visualization_pub.publish_fsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                t1 = clock()
+                print("Publisher for visualization took [ms] : ", 1000 * (t1 - t0))
             # Publish the surfaces.
             t0 = clock()
             self.surfacesplanner_pub.publish(0.5, selected_surfaces)
