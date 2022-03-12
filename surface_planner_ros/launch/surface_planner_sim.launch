@@ -1,0 +1,98 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Define the odom and world frame -->
+  <!-- Robot's current state and reference are expressed in the odom frame (a smooth frame that drifts with respect to the world frame). -->
+  <!-- The world frame is used to define the MPC tasks (e.g., footstep location), thus, it doesn't drift this frame. -->
+  <arg name="odom_frame" default="map" />
+  <arg name="world_frame" default="map" /> <!-- Use odom_frame is this param is empty -->
+
+  <!-- Define the topic name for subscrition and publication of the MPC node -->
+  <!-- Note that the robot state and MPC references needs to be expressed in the odom frame. -->
+  <!-- Instead, for efficiency reasons, the MPC plan is expressed in the world frame. -->
+  <arg name="robot_state_topic" default="/motion_control_manager/whole_body_state" />
+
+  <!-- Define the robot description: URDF, feet, nominal posture, locked joints, and armature -->
+  <!-- <arg name="joints_to_be_locked" default="[actuated_lidar_dynamixel]"/> -->
+  <arg name="joints_to_be_locked" default="[]" />
+  <arg name="robot_description" default="robot_description" />
+  <arg name="3d_feet" default="[LF_FOOT, LH_FOOT, RF_FOOT, RH_FOOT]" />
+
+  <!-- Use URDF of the environment or planeseg visualisation. -->
+  <arg name="planeseg" value="False" />
+
+  <!-- Planeseg parameters for postprocessing -->
+  <arg name="margin" value="0.06" /> <!-- Margin in [m] inside the convex surfaces -->
+  <arg name="n_points" value="6" /> <!-- Maximum Number of points for for each convex surface -->
+  <!-- Method to remove the overlapping between surfaces :
+  1. Run the list of surfaces starting with the lowest.
+  2. Decomposes the lowest surface in set of convex ones by removing the upper surfaces that overlap it. (Tesselation algorithm).
+  3. Delate some of the remaining surfaces from the list and continue using one of the following method.
+      - BASIC (0): Intersect the lowest polygon with all the upper polygon that overlay and keep all remaining surfaces.
+      - AREA (1): After difference and decomposition with the upper polygons, select only the remining polygon
+              whose area is superior to min_area arg.
+      - CONVEX (2): Apply the difference with the convex hull of the upper surfaces that intersect, to avoid
+                having small surfaces between the upper surfaces.
+      - AREA_CONVEX (3): Both 1 and 2 methods. -->
+  <arg name="method_id" value="3" />
+  <arg name="poly_size" value="10" />  <!-- Maximum size of the polygon for the convex decomposition. -->
+  <arg name="min_area" value="0.03" /> <!-- Area under which the remaining surfaces is delated. -->
+  <arg name="N_phase" value="2" /> <!-- Number of phases computing by SL1M (1 phase = whole walking gait, 4 foot moving) -->
+  <arg name="com" value="False" /> <!-- Optimise CoM trajectory in SL1M -->
+
+  <!-- MPC-Walkgen parameters -->
+  <arg name="N_phase_return" default="walkgen/N_phase_return" /> <!-- Number of phases returned by SL1M -->
+  <arg name="typeGait" default="walkgen/typeGait" /> <!-- "Walk" or "Trot" -->
+  <arg name="dt" default="walkgen/dt" />
+  <arg name="N_ss" default="walkgen/N_ss" />
+  <arg name="N_ds" default="walkgen/N_ds" />
+  <arg name="N_uss" default="walkgen/N_uss" />
+  <arg name="N_uds" default="walkgen/N_uds" />
+
+  <!-- Heightmap and URDF path -->
+  <arg name="path" default="/home/thomas_cbrs/Desktop/edin/memmo_anymal/walkgen_surface_planner/python/walkgen_surface_planner"/>
+  <arg name="urdf" default="/data/urdf/one_step.urdf" />
+  <arg name="stl" default="/data/meshes/one_step.stl" />
+  <arg name="heightmap" default="/data/one_step.dat"  />
+
+  <!-- Topic to exchange with footstepplanner -->
+  <arg name="fstep_manager_topic" default="/walkgen/fstep_manager" />
+  <arg name="surface_planner_topic" default="/walkgen/surface_planner" />
+  <arg name="planeseg_topic" default="/plane_seg/hull_marker_array" />
+
+  <!-- Visualization, publish marker and markerArray for RVIZ visualization -->
+  <arg name="visualization" value="True" />
+
+  <node pkg="surface_planner_ros" type="main.py" name="surface_planner" output="screen" >
+    <param name="odom_frame" value="$(arg odom_frame)" />
+    <param name="world_frame" value="$(arg world_frame)" />
+    <param name="urdf_xml" value="$(arg robot_description)" />
+    <rosparam param="3d_feet" subst_value="True">$(arg 3d_feet)</rosparam>
+    <rosparam param="joints_to_be_locked" subst_value="True">$(arg joints_to_be_locked)</rosparam>
+    <param name="robot_state_topic" value="$(arg robot_state_topic)" />
+    <param name="planeseg" value="$(arg planeseg)" />
+    <param name="margin" value="$(arg robot_state_topic)" />
+    <param name="n_points" value="$(arg margin)" />
+    <param name="method_id" value="$(arg method_id)" />
+    <param name="poly_size" value="$(arg poly_size)" />
+    <param name="min_area" value="$(arg min_area)" />
+    <param name="N_phase" value="$(arg N_phase)" />
+    <param name="com" value="$(arg com)" />
+    <param name="N_phase_return" value="$(arg N_phase_return)" />
+    <param name="typeGait" value="$(arg typeGait)" />
+    <param name="dt" value="$(arg dt)" />
+    <param name="N_ss" value="$(arg N_ss)" />
+    <param name="N_ds" value="$(arg N_ds)" />
+    <param name="N_uss" value="$(arg N_uss)" />
+    <param name="N_uds" value="$(arg N_uds)" />
+    <param name="path" value="$(arg path)" />
+    <param name="urdf" value="$(arg urdf)" />
+    <param name="stl" value="$(arg stl)" />
+    <param name="heightmap" value="$(arg heightmap)" />
+    <param name="fstep_manager_topic" value="$(arg fstep_manager_topic)" />
+    <param name="surface_planner_topic" value="$(arg surface_planner_topic)" />
+    <param name="planeseg_topic" value="$(arg planeseg_topic)" />
+    <param name="visualization" value="$(arg visualization)" />
+  </node>
+
+</launch>
