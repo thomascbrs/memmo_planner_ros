@@ -285,6 +285,8 @@ class SurfacePlannerNode():
                 t0 = clock()
                 self._visualization_pub.publish_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
                 self._visualization_pub.publish_fsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                surfaces = [np.array(value[0]).T for key,value in self.surface_planner._all_surfaces.items()]
+                self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
                 t1 = clock()
                 print("Publisher for visualization took [ms] : ", 1000 * (t1 - t0))
             # Publish the surfaces.
