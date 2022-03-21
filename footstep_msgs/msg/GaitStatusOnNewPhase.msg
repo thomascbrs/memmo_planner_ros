@@ -6,3 +6,6 @@ FootPosition[4] foot_pos
 
 # Gait pattern
 std_msgs/Float64MultiArray gait
+
+# State filtered (rpy)
+float64[6] q_filter

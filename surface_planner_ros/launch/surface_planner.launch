@@ -51,9 +51,9 @@
 
   <!-- Heightmap and URDF path -->
   <arg name="path" default="/home/thomas_cbrs/Desktop/edin/memmo_anymal/walkgen_surface_planner/python/walkgen_surface_planner"/>
-  <arg name="urdf" default="/data/urdf/one_step.urdf" />
-  <arg name="stl" default="/data/meshes/one_step.stl" />
-  <arg name="heightmap" default="/data/one_step.dat"  />
+  <arg name="urdf" default="/data/urdf/two_step.urdf" />
+  <arg name="stl" default="/data/meshes/two_step.stl" />
+  <arg name="heightmap" default="/data/two_step.dat"  />
 
   <!-- Topic to exchange with footstepplanner -->
   <arg name="fstep_manager_topic" default="/walkgen/fstep_manager" />

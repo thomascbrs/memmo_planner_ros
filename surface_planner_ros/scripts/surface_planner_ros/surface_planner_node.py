@@ -207,6 +207,7 @@ class SurfacePlannerNode():
         self._vel_sub = rospy.Subscriber("/cmd_vel", Twist, self.velocity_callback, queue_size=1)
         self.gait = None
         self.fsteps = np.zeros((3, 4))
+        self.q_filter = np.zeros(7)
 
         # Planner onoff switch
         self.onoff = False
@@ -244,8 +245,9 @@ class SurfacePlannerNode():
     def fsteps_manager_callback(self, data):
         """ Extract data from foostep manager.
         """
-        self.gait, self.fsteps = self._stepmanager_iface.writeFromMessage(data)
-
+        self.gait, self.fsteps, q_filter = self._stepmanager_iface.writeFromMessage(data)
+        self.q_filter[:3] = q_filter[:3]
+        self.q_filter[3:7] = pinocchio.Quaternion(pinocchio.rpy.rpyToMatrix(q_filter[3:])).coeffs()
         # Turn on planner
         self.onoff = True
 
@@ -274,7 +276,7 @@ class SurfacePlannerNode():
             if self._newSurfaces:
                 self.surface_planner.set_surfaces(self.surfaces_processed) # update surfaces
                 self._newSurfaces = False
-            selected_surfaces = self.surface_planner.run(q, self.gait, self._cmd_vel, self.fsteps)
+            selected_surfaces = self.surface_planner.run(self.q_filter, self.gait, self._cmd_vel, self.fsteps)
 
             t1 = clock()
             print("SL1M optimisation took [ms] : ", 1000 * (t1 - t0))
