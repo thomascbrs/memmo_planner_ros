@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
   <node pkg="joy" type="joy_node" name="joy_node" output="screen"/>
+  <rosparam command="load" file="$(find memmo_teleop)/config/ps4.yaml" />
   <node pkg="memmo_teleop" type="memmo_teleop_joystick" name="memmo_teleop_joystick" output="screen"/>
 </launch>

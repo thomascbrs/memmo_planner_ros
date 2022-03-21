@@ -25,6 +25,10 @@ add_executable(memmo_teleop_joystick
   src/main_joystick.cpp
   src/memmo_teleop_joystick.cpp
 )
+
+find_package(Eigen3 REQUIRED)
+target_link_libraries (memmo_teleop_joystick Eigen3::Eigen)
+
 add_dependencies(memmo_teleop_joystick ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(memmo_teleop_joystick ${catkin_LIBRARIES})
 

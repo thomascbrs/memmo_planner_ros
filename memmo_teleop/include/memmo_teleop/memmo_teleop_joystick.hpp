@@ -31,6 +31,8 @@
 #include <geometry_msgs/Twist.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Joy.h>
+#include <math.h>
+#include <Eigen/Dense>
 
 namespace memmo_teleop
 {
@@ -46,20 +48,38 @@ private:
   ros::NodeHandle private_nh_;
 
   // Linear Velocity
-  double lin_vel_x_limit_;
-  double lin_vel_x_step_size_;
-  double lin_vel_y_limit_;
-  double lin_vel_y_step_size_;
-  double lin_vel_z_limit_;
-  double lin_vel_z_step_size_;
+  double vel_x_limit_;
+  double vel_x_step_size_;
+  double vel_y_limit_;
+  double vel_y_step_size_;
+  double vel_z_limit_;
+  double vel_z_step_size_;
 
   // Angular Velocity
-  double ang_vel_x_limit_;
-  double ang_vel_x_step_size_;
-  double ang_vel_y_limit_;
-  double ang_vel_y_step_size_;
-  double ang_vel_z_limit_;
-  double ang_vel_z_step_size_;
+  double vel_roll_limit_;
+  double vel_roll_step_size_;
+  double vel_pitch_limit_;
+  double vel_pitch_step_size_;
+  double vel_yaw_limit_;
+  double vel_yaw_step_size_;
+
+  // Filtering parameters
+  double cutoff_frequency_; // [Hz]
+  double beta_;
+  double dead_zone_x_;
+  double dead_zone_y_;
+  double dead_zone_yaw_;
+  double dead_zone_step_;
+  int method_id_;
+
+  // Store velocity (joystick and filtered)
+  Eigen::Matrix<double, 6, 1> vel_joystick_;
+  Eigen::Matrix<double, 6, 1> vel_filtered_;
+
+  // Publishing rate
+  double publishing_rate_; // [Hz]
+  ros::Timer timer_publisher_;
+  void timer_callback();
 
   // ROS Publisher
   ros::Publisher cmd_vel_pub_;
@@ -67,8 +87,11 @@ private:
   // ROS Subscriber
   ros::Subscriber joy_sub_;
   void joy_callback(const sensor_msgs::Joy::ConstPtr & msg);
+  bool first_joy_received_;
 
   void print_joyop();
+  void update_joystick_continuous(const sensor_msgs::Joy::ConstPtr & msg);
+  void update_joystick_step(const sensor_msgs::Joy::ConstPtr & msg);
   // TODO(JaehyunShim): print_vel should be curr vel? or ref vel?
   void send_cmd_vel(double vel_lin_x, double vel_lin_y, double vel_lin_z, double vel_ang_x,
                     double vel_ang_y, double vel_ang_z);
