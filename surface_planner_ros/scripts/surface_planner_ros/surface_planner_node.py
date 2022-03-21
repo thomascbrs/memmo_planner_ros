@@ -31,6 +31,7 @@ import numpy as np
 from time import perf_counter as clock
 from time import sleep
 import pinocchio
+import warnings
 
 import rospy
 import tf
@@ -40,10 +41,11 @@ from whole_body_state_subscriber_py import WholeBodyStateSubscriber
 from geometry_msgs.msg import Twist
 
 import walkgen_surface_planner.SurfacePlanner as SurfacePlanner
-from walkgen_surface_planner.tools.geometry_utils import reduce_surfaces, remove_overlap_surfaces
 from walkgen_ros.WalkgenRosMessageConversion import SurfacePublisher, StepManagerInterface
 from walkgen_surface_planner.params import SurfacePlannerParams
 from walkgen_ros.WalkgenRosVisualization import WalkgenVisualizationPublisher
+from walkgen_surface_processing.SurfaceDetector import SurfaceDetector
+from walkgen_surface_processing.SurfaceProcessing import SurfaceProcessing
 
 class SurfacePlannerNode():
 
@@ -129,6 +131,7 @@ class SurfacePlannerNode():
                 sleep(1)
 
         print("Initial configuration in world frame : ", q0[:7])
+        self._q = q0[:7]
         print("Average height for initial surface : ", np.mean(height_))
         print("-------------")
         initial_height = np.mean(height_)
@@ -167,10 +170,19 @@ class SurfacePlannerNode():
         self._params.dt = rospy.get_param(rospy.get_param(nodeName + "/dt"))
         self._params.N_phase_return = rospy.get_param(rospy.get_param(nodeName + "/N_phase_return"))
         if self._params.N_phase_return > self._params.N_phase:
-            raise AttributeError("Cannot return more surfaces than planned in the MIP horizon, change N_phase or N_phase_return param.")
+            warnings.warn("More phases in the MPC horizon than planned bby the MIP. The last surface selected will be used multiple times.")
 
         # Surface planner
         self.surface_planner = SurfacePlanner(initial_height, q0[:7], self._params)
+
+        # Process surfaces
+        self.surface_processing = SurfaceProcessing(initial_height= initial_height, params = self._params)
+
+        if not self.planeseg:
+            # Extract surfaces from URDF file.
+            surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
+            all_surfaces = surface_detector.extract_surfaces()
+            self.surface_planner.set_surfaces(all_surfaces)
 
         # Visualization tools
         if self._visualization:
@@ -182,23 +194,12 @@ class SurfacePlannerNode():
                 worldPose = self.surface_planner.worldPose
                 self._visualization_pub.publish_world(worldMesh, worldPose, frame_id=self._worldFrame)
 
-                surfaces = [np.array(value[0]).T for key,value in self.surface_planner._all_surfaces.items()]
+                surfaces = [np.array(value).T for value in all_surfaces.values()]
                 self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
 
-        if self.planeseg:
-            # Parameters for planeseg postprocessing.
-            self._n_points = self._params.n_points
-            self._method_id = self._params.method_id
-            self._poly_size = self._params.poly_size
-            self._min_area = self._params.min_area
-            self._margin = self._params.margin
-
-        self._init_surface = self.surface_planner._init_surface
         # Surface filtered
-        if self.planeseg:
-            self.surfaces_processed = [self.surface_planner._init_surface.vertices]
-        else:
-            self.surfaces_processed = None
+        self.surfaces_processed = None
+        self._newSurfaces = False
 
         # Velocity suscriber
         self._cmd_vel = np.zeros(6)
@@ -236,17 +237,9 @@ class SurfacePlannerNode():
     def hull_marker_array_callback(self, data):
         """ Filter and store incoming convex surfaces from planeseg.
         """
-        # Reduce and sort incoming data
-        surfaces_reduced = reduce_surfaces(data, margin=self._margin, n_points=self._n_points)
-
-        # Apply proccess to filter and decompose the surfaces to avoid overlap
-        self.surfaces_processed = remove_overlap_surfaces(surfaces_reduced,
-                                                          polySize=self._poly_size,
-                                                          method=self._method_id,
-                                                          min_area=self._min_area,
-                                                          initial_floor=self._init_surface.vertices)
-
-        # print("\n -----Marker array received-----   \n")
+        print("\n -----Marker array received-----   \n")
+        self.surfaces_processed = self.surface_processing.run(self._q[:3], data)
+        self._newSurfaces = True
 
     def fsteps_manager_callback(self, data):
         """ Extract data from foostep manager.
@@ -274,18 +267,22 @@ class SurfacePlannerNode():
             self._rot.x, self._rot.y, self._rot.z, self._rot.w = q[3:7]
             self._oMb.rotation = self._rot.toRotationMatrix()
             q[:7] = pinocchio.SE3ToXYZQUAT(self._mMo.act(self._oMb))
+            self._q = q[:7]
 
             t0 = clock()
             # Start an optimisation
-            selected_surfaces = self.surface_planner.run(q, self.gait, self._cmd_vel, self.fsteps,
-                                                        self.surfaces_processed)
+            if self._newSurfaces:
+                self.surface_planner.set_surfaces(self.surfaces_processed) # update surfaces
+                self._newSurfaces = False
+            selected_surfaces = self.surface_planner.run(q, self.gait, self._cmd_vel, self.fsteps)
+
             t1 = clock()
             print("SL1M optimisation took [ms] : ", 1000 * (t1 - t0))
             if self._visualization:
                 t0 = clock()
                 self._visualization_pub.publish_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
                 self._visualization_pub.publish_fsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
-                surfaces = [np.array(value[0]).T for key,value in self.surface_planner._all_surfaces.items()]
+                surfaces = [np.array(value).T for key,value in self.surface_planner.all_surfaces.items()]
                 self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
                 t1 = clock()
                 print("Publisher for visualization took [ms] : ", 1000 * (t1 - t0))
