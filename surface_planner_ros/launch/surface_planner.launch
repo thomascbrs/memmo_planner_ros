@@ -22,7 +22,7 @@
   <arg name="planeseg" value="False" />
 
   <!-- Planeseg parameters for postprocessing -->
-  <arg name="margin" value="0.06" /> <!-- Margin in [m] inside the convex surfaces -->
+  <arg name="margin" value="0.05" /> <!-- Margin in [m] inside the convex surfaces -->
   <arg name="n_points" value="6" /> <!-- Maximum Number of points for for each convex surface -->
   <!-- Method to remove the overlapping between surfaces :
   1. Run the list of surfaces starting with the lowest.
@@ -51,9 +51,9 @@
 
   <!-- Heightmap and URDF path -->
   <arg name="path" default="/home/thomas_cbrs/Desktop/edin/memmo_anymal/walkgen_surface_planner/python/walkgen_surface_planner"/>
-  <arg name="urdf" default="/data/urdf/two_step.urdf" />
-  <arg name="stl" default="/data/meshes/two_step.stl" />
-  <arg name="heightmap" default="/data/two_step.dat"  />
+  <arg name="urdf" default="/data/urdf/lab_scene.urdf" />
+  <arg name="stl" default="/data/meshes/lab_scene.stl" />
+  <arg name="heightmap" default="/data/lab_scene.dat"  />
 
   <!-- Topic to exchange with footstepplanner -->
   <arg name="fstep_manager_topic" default="/walkgen/fstep_manager" />
@@ -71,7 +71,7 @@
     <rosparam param="joints_to_be_locked" subst_value="True">$(arg joints_to_be_locked)</rosparam>
     <param name="robot_state_topic" value="$(arg robot_state_topic)" />
     <param name="planeseg" value="$(arg planeseg)" />
-    <param name="margin" value="$(arg robot_state_topic)" />
+    <param name="margin" value="$(arg margin)" />
     <param name="n_points" value="$(arg margin)" />
     <param name="method_id" value="$(arg method_id)" />
     <param name="poly_size" value="$(arg poly_size)" />

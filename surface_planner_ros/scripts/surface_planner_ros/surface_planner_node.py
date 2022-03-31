@@ -154,6 +154,7 @@ class SurfacePlannerNode():
         self._params.urdf = rospy.get_param(nodeName + "/urdf")
         self._params.stl = rospy.get_param(nodeName + "/stl")
         self._params.heightmap = rospy.get_param(nodeName + "/heightmap")
+        self._params.margin = rospy.get_param(nodeName + "/margin")
 
         # Waiting for MPC-Walkgen parameters
         while not rospy.is_shutdown():
@@ -277,21 +278,21 @@ class SurfacePlannerNode():
                 self.surface_planner.set_surfaces(self.surfaces_processed) # update surfaces
                 self._newSurfaces = False
             selected_surfaces = self.surface_planner.run(self.q_filter, self.gait, self._cmd_vel, self.fsteps)
-
-            t1 = clock()
-            print("SL1M optimisation took [ms] : ", 1000 * (t1 - t0))
-            if self._visualization:
-                t0 = clock()
-                self._visualization_pub.publish_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
-                self._visualization_pub.publish_fsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
-                surfaces = [np.array(value).T for key,value in self.surface_planner.all_surfaces.items()]
-                self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
+            if self.surface_planner.pb_data.success:
                 t1 = clock()
-                print("Publisher for visualization took [ms] : ", 1000 * (t1 - t0))
-            # Publish the surfaces.
-            t0 = clock()
-            self.surfacesplanner_pub.publish(0.5, selected_surfaces)
-            t1 = clock()
-            print("Publisher took [ms] : ", 1000 * (t1 - t0))
+                print("SL1M optimisation took [ms] : ", 1000 * (t1 - t0))
+                if self._visualization:
+                    t0 = clock()
+                    self._visualization_pub.publish_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                    self._visualization_pub.publish_fsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                    surfaces = [np.array(value).T for key,value in self.surface_planner.all_surfaces.items()]
+                    self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
+                    t1 = clock()
+                    print("Publisher for visualization took [ms] : ", 1000 * (t1 - t0))
+                # Publish the surfaces.
+                t0 = clock()
+                self.surfacesplanner_pub.publish(0.5, selected_surfaces)
+                t1 = clock()
+                print("Publisher took [ms] : ", 1000 * (t1 - t0))
             # Turn of switch
             self.onoff = False
