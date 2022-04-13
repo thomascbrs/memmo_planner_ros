@@ -18,7 +18,7 @@ memmo_teleop:
   vel_pitch_step_size: 0.01
 
   vel_yaw_limit: 0.8
-  vel_yaw_z_step_size: 0.02
+  vel_yaw_z_step_size: 0.01
 
   # Method to control the velocity
   # 0 --> Continusous value from joystick publishing
