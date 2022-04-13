@@ -21,8 +21,9 @@
   <!-- Use URDF of the environment or planeseg visualisation. -->
   <arg name="planeseg" value="False" />
 
+  
   <!-- Planeseg parameters for postprocessing -->
-  <arg name="margin" value="0.05" /> <!-- Margin in [m] inside the convex surfaces -->
+  <arg name="margin" value="0.055" /> <!-- Margin in [m] inside the convex surfaces -->
   <arg name="n_points" value="6" /> <!-- Maximum Number of points for for each convex surface -->
   <!-- Method to remove the overlapping between surfaces :
   1. Run the list of surfaces starting with the lowest.
@@ -35,10 +36,16 @@
                 having small surfaces between the upper surfaces.
       - AREA_CONVEX (3): Both 1 and 2 methods. -->
   <arg name="method_id" value="3" />
-  <arg name="poly_size" value="10" />  <!-- Maximum size of the polygon for the convex decomposition. -->
+  <arg name="poly_size" value="10" /> <!-- Maximum size of the polygon for the convex decomposition. -->
   <arg name="min_area" value="0.03" /> <!-- Area under which the remaining surfaces is delated. -->
+
+  <!-- Surface PLanner parameters independant from MPC-Walkgen -->
   <arg name="N_phase" value="2" /> <!-- Number of phases computing by SL1M (1 phase = whole walking gait, 4 foot moving) -->
   <arg name="com" value="False" /> <!-- Optimise CoM trajectory in SL1M -->
+  <arg name="fitsize_x" value="10" /> <!-- Number of point on x-axis (base frame) to evaluate the terrain height -->
+  <arg name="fitsize_y" value="5" /> <!-- Number of point on y-axis (base frame) to evaluate the terrain height -->
+  <arg name="fitlength" value="0.3" /> <!-- Square size [m] around the position of the robot to evaluate the terrain height -->
+  <arg name="recompute_slope" value="False" /> <!-- Recompute the slope of the terrain for each contact phase configuration -->
 
   <!-- MPC-Walkgen parameters -->
   <arg name="N_phase_return" default="walkgen/N_phase_return" /> <!-- Number of phases returned by SL1M -->
@@ -50,10 +57,8 @@
   <arg name="N_uds" default="walkgen/N_uds" />
 
   <!-- Heightmap and URDF path -->
-  <arg name="path" default="/home/thomas_cbrs/Desktop/edin/memmo_anymal/walkgen_surface_planner/python/walkgen_surface_planner"/>
-  <arg name="urdf" default="/data/urdf/lab_scene.urdf" />
+  <arg name="path" default="/home/thomas_cbrs/Desktop/edin/memmo_anymal/walkgen_surface_processing/python/walkgen_surface_processing" />
   <arg name="stl" default="/data/meshes/lab_scene.stl" />
-  <arg name="heightmap" default="/data/lab_scene.dat"  />
 
   <!-- Topic to exchange with footstepplanner -->
   <arg name="fstep_manager_topic" default="/walkgen/fstep_manager" />
@@ -63,7 +68,7 @@
   <!-- Visualization, publish marker and markerArray for RVIZ visualization -->
   <arg name="visualization" value="True" />
 
-  <node pkg="surface_planner_ros" type="main.py" name="surface_planner" output="screen" >
+  <node pkg="surface_planner_ros" type="main.py" name="surface_planner" output="screen">
     <param name="odom_frame" value="$(arg odom_frame)" />
     <param name="world_frame" value="$(arg world_frame)" />
     <param name="urdf_xml" value="$(arg robot_description)" />
@@ -86,9 +91,11 @@
     <param name="N_uss" value="$(arg N_uss)" />
     <param name="N_uds" value="$(arg N_uds)" />
     <param name="path" value="$(arg path)" />
-    <param name="urdf" value="$(arg urdf)" />
     <param name="stl" value="$(arg stl)" />
-    <param name="heightmap" value="$(arg heightmap)" />
+    <param name="fitsize_x" value="$(arg fitsize_x)" />
+    <param name="fitsize_y" value="$(arg fitsize_y)" />
+    <param name="fitlength" value="$(arg fitlength)" />
+    <param name="recompute_slope" value="$(arg recompute_slope)" />
     <param name="fstep_manager_topic" value="$(arg fstep_manager_topic)" />
     <param name="surface_planner_topic" value="$(arg surface_planner_topic)" />
     <param name="planeseg_topic" value="$(arg planeseg_topic)" />

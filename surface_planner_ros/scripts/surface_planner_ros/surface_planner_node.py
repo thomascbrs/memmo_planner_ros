@@ -44,8 +44,9 @@ import walkgen_surface_planner.SurfacePlanner as SurfacePlanner
 from walkgen_ros.WalkgenRosMessageConversion import SurfacePublisher, StepManagerInterface
 from walkgen_surface_planner.params import SurfacePlannerParams
 from walkgen_ros.WalkgenRosVisualization import WalkgenVisualizationPublisher
-from walkgen_surface_processing.SurfaceDetector import SurfaceDetector
-from walkgen_surface_processing.SurfaceProcessing import SurfaceProcessing
+from walkgen_surface_processing.surface_detector import SurfaceDetector
+from walkgen_surface_processing.surface_processing import SurfaceProcessing
+from walkgen_surface_processing.params import SurfaceProcessingParams
 
 class SurfacePlannerNode():
 
@@ -140,21 +141,24 @@ class SurfacePlannerNode():
         self._fstep_manager_topic = rospy.get_param(nodeName + "/fstep_manager_topic")
         self._surface_planner_topic = rospy.get_param(nodeName + "/surface_planner_topic")
         self._planeseg_topic = rospy.get_param(nodeName + "/planeseg_topic")
-        # Surface planner parameters
-        self._params = SurfacePlannerParams()
-        self._params.planeseg = rospy.get_param(nodeName + "/planeseg")
-        self.planeseg = self._params.planeseg  # Use data from planeseg.
-        self._params.n_points = rospy.get_param(nodeName + "/n_points")
-        self._params.method_id = rospy.get_param(nodeName + "/method_id")
-        self._params.poly_size = rospy.get_param(nodeName + "/poly_size")
-        self._params.min_area = rospy.get_param(nodeName + "/min_area")
-        self._params.N_phase = rospy.get_param(nodeName + "/N_phase")
-        self._params.com = rospy.get_param(nodeName + "/com")
-        self._params.path = rospy.get_param(nodeName + "/path")
-        self._params.urdf = rospy.get_param(nodeName + "/urdf")
-        self._params.stl = rospy.get_param(nodeName + "/stl")
-        self._params.heightmap = rospy.get_param(nodeName + "/heightmap")
-        self._params.margin = rospy.get_param(nodeName + "/margin")
+
+        # Post-processing & environment parameters
+        self._params_processing = SurfaceProcessingParams()
+
+        self._params_processing.planeseg = rospy.get_param(nodeName + "/planeseg")
+        self._params_processing.n_points = rospy.get_param(nodeName + "/n_points")
+        self._params_processing.method_id = rospy.get_param(nodeName + "/method_id")
+        self._params_processing.poly_size = rospy.get_param(nodeName + "/poly_size")
+        self._params_processing.min_area = rospy.get_param(nodeName + "/min_area")
+        self._params_processing.margin = rospy.get_param(nodeName + "/margin")
+        self._params_processing.path = rospy.get_param(nodeName + "/path")
+        self._params_processing.stl = rospy.get_param(nodeName + "/stl")
+        self.planeseg = self._params_processing.planeseg  # Use data from planeseg.
+
+        # Surface Planner parameters independant from MPC-Walkgen-Caracal
+        self._params_planner = SurfacePlannerParams()
+        self._params_planner.N_phase = rospy.get_param(nodeName + "/N_phase")
+        self._params_planner.com = rospy.get_param(nodeName + "/com")
 
         # Waiting for MPC-Walkgen parameters
         while not rospy.is_shutdown():
@@ -163,25 +167,34 @@ class SurfacePlannerNode():
             else:
                 rospy.loginfo("Waiting for MPC-Walkgen")
                 sleep(1)
-        self._params.typeGait = rospy.get_param(rospy.get_param(nodeName + "/typeGait"))
-        self._params.N_ss = rospy.get_param(rospy.get_param(nodeName + "/N_ss"))
-        self._params.N_ds = rospy.get_param(rospy.get_param(nodeName + "/N_ds"))
-        self._params.N_uss = rospy.get_param(rospy.get_param(nodeName + "/N_uss"))
-        self._params.N_uds = rospy.get_param(rospy.get_param(nodeName + "/N_uds"))
-        self._params.dt = rospy.get_param(rospy.get_param(nodeName + "/dt"))
-        self._params.N_phase_return = rospy.get_param(rospy.get_param(nodeName + "/N_phase_return"))
-        if self._params.N_phase_return > self._params.N_phase:
+        self._params_planner.typeGait = rospy.get_param(rospy.get_param(nodeName + "/typeGait"))
+        self._params_planner.N_ss = rospy.get_param(rospy.get_param(nodeName + "/N_ss"))
+        self._params_planner.N_ds = rospy.get_param(rospy.get_param(nodeName + "/N_ds"))
+        self._params_planner.N_uss = rospy.get_param(rospy.get_param(nodeName + "/N_uss"))
+        self._params_planner.N_uds = rospy.get_param(rospy.get_param(nodeName + "/N_uds"))
+        self._params_planner.dt = rospy.get_param(rospy.get_param(nodeName + "/dt"))
+        self._params_planner.N_phase_return = rospy.get_param(rospy.get_param(nodeName + "/N_phase_return"))
+        if self._params_planner.N_phase_return > self._params_planner.N_phase:
             warnings.warn("More phases in the MPC horizon than planned bby the MIP. The last surface selected will be used multiple times.")
 
+        self._params_planner.fitsize_x = rospy.get_param(nodeName + "/fitsize_x")
+        self._params_planner.fitsize_y = rospy.get_param(nodeName + "/fitsize_y")
+        self._params_planner.fitlength = rospy.get_param(nodeName + "/fitlength")
+        self._params_planner.recompute_slope = rospy.get_param(nodeName + "/recompute_slope")
         # Surface planner
-        self.surface_planner = SurfacePlanner(initial_height, q0[:7], self._params)
+        self.surface_planner = SurfacePlanner(self._params_planner)
 
         # Process surfaces
-        self.surface_processing = SurfaceProcessing(initial_height= initial_height, params = self._params)
+        self.surface_processing = SurfaceProcessing(initial_height= initial_height, params = self._params_processing)
 
         if not self.planeseg:
             # Extract surfaces from URDF file.
-            surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
+            # surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
+            translation = np.zeros(3)
+            translation[:2] = self._q[:2]
+            translation[-1] = initial_height
+            R_ =  pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
+            surface_detector = SurfaceDetector(self._params_processing.path + self._params_processing.stl, R_, translation, self._params_processing.margin , "environment_")
             all_surfaces = surface_detector.extract_surfaces()
             self.surface_planner.set_surfaces(all_surfaces)
 
@@ -191,8 +204,9 @@ class SurfacePlannerNode():
                 print("Publishing world...")
                 self._visualization_pub = WalkgenVisualizationPublisher("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
                 sleep(1.) # Not working otherwise
-                worldMesh = self._params.path + self._params.stl
-                worldPose = self.surface_planner.worldPose
+                worldMesh = self._params_processing.path + self._params_processing.stl
+                worldPose = self._q
+                worldPose[2] = initial_height
                 self._visualization_pub.publish_world(worldMesh, worldPose, frame_id=self._worldFrame)
 
                 surfaces = [np.array(value).T for value in all_surfaces.values()]
