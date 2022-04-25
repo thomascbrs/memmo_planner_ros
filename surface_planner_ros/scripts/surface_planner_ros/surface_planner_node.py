@@ -28,7 +28,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import numpy as np
-from time import perf_counter as clock
+try:
+    from time import perf_counter as clock
+except ImportError:
+    from time import time as clock
 from time import sleep
 import pinocchio
 import warnings
