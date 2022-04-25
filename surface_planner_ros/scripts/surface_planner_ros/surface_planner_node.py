@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #
 # Copyright 2022 University of Edinburgh
 # All rights reserved.
