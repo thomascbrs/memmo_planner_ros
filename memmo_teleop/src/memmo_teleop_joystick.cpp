@@ -52,8 +52,8 @@ MemmoTeleopJoystick::MemmoTeleopJoystick() : nh_(""), private_nh_("~")
   private_nh_.param<double>(nodeName + "/vel_pitch_limit", vel_pitch_limit_, 0.5);
   private_nh_.param<double>(nodeName + "/vel_pitch_step_size", vel_pitch_step_size_, 0.10);
 
-  private_nh_.param<double>(nodeName + "/vel_yaw_limit", vel_yaw_limit_, 0.5);
-  private_nh_.param<double>(nodeName + "/vel_yaw_step_size", vel_yaw_step_size_, 0.02);
+  private_nh_.param<double>(nodeName + "/vel_yaw_limit", vel_yaw_limit_, 0.15);
+  private_nh_.param<double>(nodeName + "/vel_yaw_step_size", vel_yaw_step_size_, 0.01);
 
   // Method to control the velocity
   // 0 --> Continusous value from joystick publishing
