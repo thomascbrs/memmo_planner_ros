@@ -13,8 +13,8 @@
   <arg name="robot_state_topic" default="/motion_control_manager/whole_body_state" />
 
   <!-- Define the robot description: URDF, feet, nominal posture, locked joints, and armature -->
-  <!-- <arg name="joints_to_be_locked" default="[actuated_lidar_dynamixel]"/> -->
-  <arg name="joints_to_be_locked" default="[]" />
+  <arg name="joints_to_be_locked" default="[actuated_lidar_dynamixel]"/>
+  <!-- <arg name="joints_to_be_locked" default="[]" /> -->
   <arg name="robot_description" default="robot_description" />
   <arg name="3d_feet" default="[LF_FOOT, LH_FOOT, RF_FOOT, RH_FOOT]" />
 
@@ -22,7 +22,7 @@
   <arg name="planeseg" value="False" />
 
   <!-- Planeseg parameters for postprocessing -->
-  <arg name="margin" value="0.055" /> <!-- Margin in [m] inside the convex surfaces -->
+  <arg name="margin" value="0.065" /> <!-- Margin in [m] inside the convex surfaces -->
   <arg name="n_points" value="6" /> <!-- Maximum Number of points for for each convex surface -->
   <!-- Method to remove the overlapping between surfaces :
   1. Run the list of surfaces starting with the lowest.
@@ -44,7 +44,7 @@
   <arg name="fitsize_x" value="10" /> <!-- Number of point on x-axis (base frame) to evaluate the terrain height -->
   <arg name="fitsize_y" value="5" /> <!-- Number of point on y-axis (base frame) to evaluate the terrain height -->
   <arg name="fitlength" value="0.3" /> <!-- Square size [m] around the position of the robot to evaluate the terrain height -->
-  <arg name="recompute_slope" value="False" /> <!-- Recompute the slope of the terrain for each contact phase configuration -->
+  <arg name="recompute_slope" value="True" /> <!-- Recompute the slope of the terrain for each contact phase configuration -->
 
   <!-- MPC-Walkgen parameters -->
   <arg name="N_phase_return" default="walkgen/N_phase_return" /> <!-- Number of phases returned by SL1M -->
