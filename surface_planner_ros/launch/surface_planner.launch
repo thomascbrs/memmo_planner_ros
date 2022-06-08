@@ -19,12 +19,13 @@
   <arg name="3d_feet" default="[LF_FOOT, LH_FOOT, RF_FOOT, RH_FOOT]" />
 
   <!-- Use URDF of the environment or planeseg visualisation. -->
-  <arg name="planeseg" value="False" />
+  <arg name="planeseg" value="True" />
 
   
   <!-- Planeseg parameters for postprocessing -->
-  <arg name="margin" value="0.055" /> <!-- Margin in [m] inside the convex surfaces -->
-  <arg name="n_points" value="6" /> <!-- Maximum Number of points for for each convex surface -->
+  <!-- <arg name="margin" value="0.085" /> Margin in [m] inside the convex surfaces without planeseg-->
+  <arg name="margin" value="0.06" />
+  <arg name="n_points" value="10" /> <!-- Maximum Number of points for for each convex surface -->
   <!-- Method to remove the overlapping between surfaces :
   1. Run the list of surfaces starting with the lowest.
   2. Decomposes the lowest surface in set of convex ones by removing the upper surfaces that overlap it. (Tesselation algorithm).
@@ -45,7 +46,7 @@
   <arg name="fitsize_x" value="10" /> <!-- Number of point on x-axis (base frame) to evaluate the terrain height -->
   <arg name="fitsize_y" value="5" /> <!-- Number of point on y-axis (base frame) to evaluate the terrain height -->
   <arg name="fitlength" value="0.3" /> <!-- Square size [m] around the position of the robot to evaluate the terrain height -->
-  <arg name="recompute_slope" value="False" /> <!-- Recompute the slope of the terrain for each contact phase configuration -->
+  <arg name="recompute_slope" value="True" /> <!-- Recompute the slope of the terrain for each contact phase configuration -->
 
   <!-- MPC-Walkgen parameters -->
   <arg name="N_phase_return" default="walkgen/N_phase_return" /> <!-- Number of phases returned by SL1M -->
@@ -58,7 +59,10 @@
 
   <!-- Heightmap and URDF path -->
   <arg name="path" default="/home/thomas_cbrs/Desktop/edin/memmo_anymal/walkgen_surface_processing/python/walkgen_surface_processing" />
-  <arg name="stl" default="/data/meshes/lab_scene.stl" />
+  <!-- Stairs up -->
+  <!-- <arg name="stl" default="/data/meshes/lab_scene.stl" />  -->
+  <!-- Stairs down -->
+  <arg name="stl" default="/data/meshes/lab_scene_2.stl" />
 
   <!-- Topic to exchange with footstepplanner -->
   <arg name="fstep_manager_topic" default="/walkgen/fstep_manager" />
@@ -77,7 +81,7 @@
     <param name="robot_state_topic" value="$(arg robot_state_topic)" />
     <param name="planeseg" value="$(arg planeseg)" />
     <param name="margin" value="$(arg margin)" />
-    <param name="n_points" value="$(arg margin)" />
+    <param name="n_points" value="$(arg n_points)" />
     <param name="method_id" value="$(arg method_id)" />
     <param name="poly_size" value="$(arg poly_size)" />
     <param name="min_area" value="$(arg min_area)" />
