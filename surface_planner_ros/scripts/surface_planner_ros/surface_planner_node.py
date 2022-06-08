@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2022 University of Edinburgh
 # All rights reserved.
@@ -189,8 +189,10 @@ class SurfacePlannerNode():
 
         # Process surfaces
         self.surface_processing = SurfaceProcessing(initial_height= initial_height, params = self._params_processing)
+        self._firstSetSurfaces = False
 
-        if not self.planeseg:
+        if not self.planeseg:   
+            self._firstSetSurfaces = True # Always available using planeseg
             # Extract surfaces from URDF file.
             # surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
             translation = np.zeros(3)
@@ -203,9 +205,10 @@ class SurfacePlannerNode():
 
         # Visualization tools
         if self._visualization:
+            self._visualization_pub = WalkgenVisualizationPublisher("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
             if not self.planeseg: # Publish URDF environment
                 print("Publishing world...")
-                self._visualization_pub = WalkgenVisualizationPublisher("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
+                # self._visualization_pub = WalkgenVisualizationPublisher("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
                 sleep(1.) # Not working otherwise
                 worldMesh = self._params_processing.path + self._params_processing.stl
                 worldPose = self._q
@@ -259,6 +262,9 @@ class SurfacePlannerNode():
         print("\n -----Marker array received-----   \n")
         self.surfaces_processed = self.surface_processing.run(self._q[:3], data)
         self._newSurfaces = True
+        self._firstSetSurfaces = True
+        surfaces = [np.array(value).T for key,value in self.surfaces_processed.items()]
+        self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
 
     def fsteps_manager_callback(self, data):
         """ Extract data from foostep manager.
@@ -270,7 +276,7 @@ class SurfacePlannerNode():
         self.onoff = True
 
     def timer_callback(self, event):
-        if self.onoff == True:
+        if self.onoff == True and self._firstSetSurfaces:
 
             t_init, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
             # Update the drift between the odom and world frames
