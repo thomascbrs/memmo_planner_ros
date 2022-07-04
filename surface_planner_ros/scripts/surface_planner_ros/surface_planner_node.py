@@ -211,18 +211,29 @@ class SurfacePlannerNode():
 
         # Visualization tools
         if self._visualization:
-            self.world_visualization = WorldVisualization("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
-            if not self.plane_seg: # Publish URDF environment
+            self.world_visualization = WorldVisualization()
+            if not self.plane_seg:  # Publish URDF environment
                 print("Publishing world...")
-                # self.world_visualization = WalkgenVisualizationPublisher("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
-                sleep(1.) # Not working otherwise
+                # self.world_visualization = WalkgenVisualizationPublisher()
+                sleep(1.)  # Not working otherwise
+
                 worldMesh = self._params_processing.path + self._params_processing.stl
                 worldPose = self._q
                 worldPose[2] = initial_height
-                self.world_visualization.publish_world(worldMesh, worldPose, frame_id=self._worldFrame)
+
+                self.marker_pub = rospy.Publisher(
+                    "surface_planner/visualization_marker", Marker, queue_size=10)
+                self.marker_array_pub = rospy.Publisher(
+                    "surface_planner/visualization_marker_array", MarkerArray, queue_size=10)
+
+                sleep(1.)  # Not working otherwise
+
+                msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self._worldFrame)
+                self.marker_pub.publish(msg)
 
                 surfaces = [np.array(value).T for value in all_surfaces.values()]
-                self.world_visualization.publish_surfaces(surfaces, frame_id=self._worldFrame)
+                msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self._worldFrame)
+                self.marker_array_pub.publish(msg)
 
         # Surface filtered
         self.surfaces_processed = None
@@ -241,18 +252,14 @@ class SurfacePlannerNode():
 
         # ROS publishers and subscribers
         if self.plane_seg:
-            self.hull_marker_array_sub = rospy.Subscriber(self._plane_seg_topic,
-                                                        MarkerArray,
-                                                        self.hull_marker_array_callback,
-                                                        queue_size=10)
-        self.fsteps_manager_sub = rospy.Subscriber(self._footstep_manager_topic,
-                                                   GaitStatusOnNewPhase,
-                                                   self.footstep_manager_callback,
-                                                   queue_size=10)
+            self.hull_marker_array_sub = rospy.Subscriber(
+                self._plane_seg_topic, MarkerArray, self.hull_marker_array_callback, queue_size=10)
+        self.fsteps_manager_sub = rospy.Subscriber(
+            self._footstep_manager_topic, GaitStatusOnNewPhase, self.footstep_manager_callback, queue_size=10)
         self.surface_planner_pub = SurfacePublisher(self._surface_planner_topic)
 
         # Stepmanager interface for message conversion.
-        self._stepmanager_iface = StepManagerInterface()
+        self._step_manager_interface = StepManagerInterface()
 
         # ROS timer
         self.timer = rospy.Timer(rospy.Duration(0.001), self.timer_callback)
@@ -270,12 +277,13 @@ class SurfacePlannerNode():
         self._newSurfaces = True
         self._firstSetSurfaces = True
         surfaces = [np.array(value).T for key,value in self.surfaces_processed.items()]
-        self.world_visualization.publish_surfaces(surfaces, frame_id=self._worldFrame)
+        msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self._worldFrame)
+        self.marker_array_pub.publish(msg)
 
     def footstep_manager_callback(self, msg):
         """ Extract data from foostep manager.
         """
-        self.gait, self.fsteps, q_filter = self._stepmanager_iface.writeFromMessage(msg)
+        self.gait, self.fsteps, q_filter = self._step_manager_interface.writeFromMessage(msg)
         self.q_filter[:3] = q_filter[:3]
         self.q_filter[3:7] = pinocchio.Quaternion(pinocchio.rpy.rpyToMatrix(q_filter[3:])).coeffs()
 
@@ -317,14 +325,18 @@ class SurfacePlannerNode():
                 if self._visualization:
                     t0 = clock()
                     # Publish world config
-                    self.world_visualization.publish_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                    msg = self.world_visualization.generate_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                    self.marker_array_pub.publish(msg)
 
                     # Publish world footsteps
-                    self.world_visualization.publish_fsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                    msg = self.world_visualization.generate_footsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                    self.marker_array_pub.publish(msg)
 
                     # Publish world surfaces
                     surfaces = [np.array(value).T for key,value in self.surface_planner.all_surfaces.items()]
-                    self.world_visualization.publish_surfaces(surfaces, frame_id=self._worldFrame)
+                    msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self._worldFrame)
+                    self.marker_array_pub.publish(msg)
+
                     t1 = clock()
                     print("Publisher for visualization took [ms] : ", 1000 * (t1 - t0))
 

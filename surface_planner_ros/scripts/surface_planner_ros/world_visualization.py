@@ -29,23 +29,20 @@
 
 import numpy as np
 import pinocchio as pin
+
+from geometry_msgs.msg import Point
 import rospy
 from visualization_msgs.msg import MarkerArray
 from visualization_msgs.msg import Marker
-from geometry_msgs.msg import Point
 
 
 class WorldVisualization():
 
-    def __init__(self, topic_marker, topic_marker_array, queue_size=10):
-        # Initializing the publisher
-        self._marker_pub = rospy.Publisher(
-            topic_marker, Marker, queue_size=queue_size)
-        self._marker_array_pub = rospy.Publisher(
-            topic_marker_array, MarkerArray, queue_size=queue_size)
+    def __init__(self):
+        print()
 
-    def publish_world(self, worldMesh, worldPose, frame_id="map"):
-        """ Publish mesh as marker message.
+    def generate_world(self, worldMesh, worldPose, frame_id="map"):
+        """ Generate mesh as marker message.
 
         Args:
             - worldMesh (str): mesh.
@@ -64,10 +61,11 @@ class WorldVisualization():
         self._set_scale(msg, 3*[1.])
         msg.type = msg.MESH_RESOURCE
         msg.mesh_resource = "file://" + worldMesh
-        self._marker_pub.publish(msg)
 
-    def publish_fsteps(self, all_feet_pos, lifetime=0., frame_id="map"):
-        """ Publish the foostep optimised by sl1m.
+        return msg
+
+    def generate_footsteps(self, all_feet_pos, lifetime=0., frame_id="map"):
+        """ Generate the foostep optimised by sl1m.
 
         Args:
             - all_feet_pos (list) : List containing the footstep optimised by the MIP.
@@ -94,10 +92,10 @@ class WorldVisualization():
                     msg.markers.append(marker_x)
                     counter += 1
 
-        self._marker_array_pub.publish(msg)
+        return msg
 
-    def publish_config(self, configs, lifetime=0., frame_id="map"):
-        """ Publish the configuration of each phase of contact of the MIP (arrow on x-axis and arrow on y-axis).
+    def generate_config(self, configs, lifetime=0., frame_id="map"):
+        """ Generate the configuration of each phase of contact of the MIP (arrow on x-axis and arrow on y-axis).
 
         Args:
             - configs (list): List of config (array x7 Positon and Orientation)
@@ -134,15 +132,16 @@ class WorldVisualization():
             marker_y.action = marker_y.ADD
             marker_y.frame_locked = True
             msg.markers.append(marker_y)
-        self._marker_array_pub.publish(msg)
 
-    def publish_surfaces(self, surfaces, lifetime=0, frame_id="map"):
-        """ Publish the surfaces computed by the MIP.
+        return msg
+
+    def generate_surfaces(self, surfaces, lifetime=0, frame_id="map"):
+        """ Generate the surfaces computed by the MIP.
         Args:
             - surfaces (list): List of array 3xn vertices positions:
                         array([[x0, x1, ... , xn],
-                                [y0, y1, ... , yn],
-                                [z0, z1, ... , zn]])
+                               [y0, y1, ... , yn],
+                               [z0, z1, ... , zn]])
             - lifetime (float): Duration in [s].
             - frame_id (str): Frame.
         """
@@ -161,16 +160,20 @@ class WorldVisualization():
             marker.type = marker.LINE_STRIP
             marker.action = marker.ADD
             marker.frame_locked = True
+
             # Add points [P0,P1,P1,P2...]
             for k in range(vertices.shape[1] - 1):
                 marker.points.append(self._point(vertices[:, k]))
                 marker.points.append(self._point(vertices[:, k+1]))
-            # Add end line.
+
+            # Add end line
             marker.points.append(self._point(vertices[:, 0]))
             marker.points.append(self._point(vertices[:, -1]))
-            # Add marker to markerArray.
+
+            # Add marker to markerArray
             msg.markers.append(marker)
-        self._marker_array_pub.publish(msg)
+
+        return msg
 
     def _set_header(self, marker, id, frame_id, ns, lifetime):
         """ Set the header parameters for marker type msg.
