@@ -14,8 +14,10 @@ catkin_python_setup()
 catkin_package()
 
 catkin_install_python(PROGRAMS
+  scripts/surface_planner_ros/main.py
+  scripts/surface_planner_ros/step_manager_interface.py
+  scripts/surface_planner_ros/surface_planner_interface.py
   scripts/surface_planner_ros/surface_planner_node.py
-  scripts/surface_planner_ros/__init__.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
