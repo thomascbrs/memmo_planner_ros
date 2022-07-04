@@ -44,7 +44,7 @@ from whole_body_state_subscriber_py import WholeBodyStateSubscriber
 
 from footstep_msgs.msg import GaitStatusOnNewPhase, SetSurfaces
 from surface_planner_ros.step_manager_interface import StepManagerInterface
-from surface_planner_ros.surface_planner_interface import SurfacePublisher
+from surface_planner_ros.surface_planner_interface import SurfacePlannerInterface
 from surface_planner_ros.world_visualization import WorldVisualization
 
 from walkgen_surface_planner import SurfacePlanner
@@ -256,7 +256,10 @@ class SurfacePlannerNode():
                 self._plane_seg_topic, MarkerArray, self.hull_marker_array_callback, queue_size=10)
         self.fsteps_manager_sub = rospy.Subscriber(
             self._footstep_manager_topic, GaitStatusOnNewPhase, self.footstep_manager_callback, queue_size=10)
-        self.surface_planner_pub = SurfacePublisher(self._surface_planner_topic)
+
+        self.surface_planner_interface = SurfacePlannerInterface()
+        self.surface_planner_pub = rospy.Publisher(
+            self._surface_planner_topic, SetSurfaces, queue_size=10)
 
         # Stepmanager interface for message conversion.
         self._step_manager_interface = StepManagerInterface()
@@ -342,7 +345,9 @@ class SurfacePlannerNode():
 
                 # Publish surfaces
                 t0 = clock()
-                self.surface_planner_pub.publish(0.5, selected_surfaces)
+                msg = self.surface_planner_interface.writeToMessage(0.5, selected_surfaces)
+                self.surface_planner_pub.publish(msg)
+
                 t1 = clock()
                 print("Publisher took [ms] : ", 1000 * (t1 - t0))
 

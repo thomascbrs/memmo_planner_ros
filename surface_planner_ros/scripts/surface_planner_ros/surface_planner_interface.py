@@ -34,18 +34,6 @@ import rospy
 from std_msgs.msg import Float64MultiArray, MultiArrayDimension
 
 
-class SurfacePublisher():
-
-    def __init__(self, topic, queue_size=10):
-        # Initializing the publisher
-        self._pub = rospy.Publisher(topic, SetSurfaces, queue_size=queue_size)
-        self._surfacePlanner_iface = SurfacePlannerInterface()
-
-    def publish(self, t, set_surfaces):
-        msg = self._surfacePlanner_iface.writeToMessage(t, set_surfaces)
-        self._pub.publish(msg)
-
-
 class SurfacePlannerInterface():
 
     def __init__(self):
