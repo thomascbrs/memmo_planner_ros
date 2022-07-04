@@ -18,3 +18,8 @@ catkin_install_python(PROGRAMS
   scripts/surface_planner_ros/__init__.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+## Install
+install(DIRECTORY config
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)

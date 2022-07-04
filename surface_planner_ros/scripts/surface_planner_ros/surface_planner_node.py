@@ -60,10 +60,10 @@ class SurfacePlannerNode():
         # ------ Get state of the robot to adapt the surface height.
         # Wait for URDF
         while not rospy.is_shutdown():
-            if rospy.has_param(rospy.get_param(nodeName + "/urdf_xml")):
+            if rospy.has_param(rospy.get_param(nodeName + "/robot_description")):
                 break
             else:
-                rospy.loginfo("URDF not yet available on topic " + rospy.get_param(nodeName + "/urdf_xml") +
+                rospy.loginfo("URDF not yet available on topic " + rospy.get_param(nodeName + "/robot_description") +
                               " - waiting")
                 sleep(1)
 
@@ -75,7 +75,7 @@ class SurfacePlannerNode():
         self._useDriftCompensation = (self._odomFrame != self._worldFrame)
         if not self._useDriftCompensation:
             rospy.loginfo("Map and odom frame are identical: Not using drift compensation.")
-        urdfXml = rospy.get_param(rospy.get_param(nodeName + "/urdf_xml"))
+        urdfXml = rospy.get_param(rospy.get_param(nodeName + "/robot_description"))
         self._feet3DNames = rospy.get_param(nodeName + "/3d_feet")
         robotStateTopic = rospy.get_param(nodeName + "/robot_state_topic")
         lockedJointNames = rospy.get_param(nodeName + "/joints_to_be_locked")
@@ -142,14 +142,14 @@ class SurfacePlannerNode():
         initial_height = np.mean(height_)
 
         self._visualization = rospy.get_param(nodeName + "/visualization")
-        self._fstep_manager_topic = rospy.get_param(nodeName + "/fstep_manager_topic")
+        self._footstep_manager_topic = rospy.get_param(nodeName + "/footstep_manager_topic")
         self._surface_planner_topic = rospy.get_param(nodeName + "/surface_planner_topic")
-        self._planeseg_topic = rospy.get_param(nodeName + "/planeseg_topic")
+        self._plane_seg_topic = rospy.get_param(nodeName + "/plane_seg_topic")
 
         # Post-processing & environment parameters
         self._params_processing = SurfaceProcessingParams()
 
-        self._params_processing.planeseg = rospy.get_param(nodeName + "/planeseg")
+        self._params_processing.plane_seg = rospy.get_param(nodeName + "/plane_seg")
         self._params_processing.n_points = rospy.get_param(nodeName + "/n_points")
         self._params_processing.method_id = rospy.get_param(nodeName + "/method_id")
         self._params_processing.poly_size = rospy.get_param(nodeName + "/poly_size")
@@ -157,7 +157,7 @@ class SurfacePlannerNode():
         self._params_processing.margin = rospy.get_param(nodeName + "/margin")
         self._params_processing.path = rospy.get_param(nodeName + "/path")
         self._params_processing.stl = rospy.get_param(nodeName + "/stl")
-        self.planeseg = self._params_processing.planeseg  # Use data from planeseg.
+        self.plane_seg = self._params_processing.plane_seg  # Use data from plane_seg.
 
         # Surface Planner parameters independant from MPC-Walkgen-Caracal
         self._params_planner = SurfacePlannerParams()
@@ -192,8 +192,8 @@ class SurfacePlannerNode():
         self.surface_processing = SurfaceProcessing(initial_height= initial_height, params = self._params_processing)
         self._firstSetSurfaces = False
 
-        if not self.planeseg:
-            self._firstSetSurfaces = True # Always available using planeseg
+        if not self.plane_seg:
+            self._firstSetSurfaces = True # Always available using plane_seg
             # Extract surfaces from URDF file.
             # surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
             translation = np.zeros(3)
@@ -207,7 +207,7 @@ class SurfacePlannerNode():
         # Visualization tools
         if self._visualization:
             self._visualization_pub = WalkgenVisualizationPublisher("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
-            if not self.planeseg: # Publish URDF environment
+            if not self.plane_seg: # Publish URDF environment
                 print("Publishing world...")
                 # self._visualization_pub = WalkgenVisualizationPublisher("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
                 sleep(1.) # Not working otherwise
@@ -223,7 +223,7 @@ class SurfacePlannerNode():
         self.surfaces_processed = None
         self._newSurfaces = False
 
-        # Velocity suscriber
+        # cmd_vel subscriber
         self._cmd_vel = np.zeros(6)
         # self._cmd_vel[0] = 0.05
         self.cmd_vel_sub = rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_callback, queue_size=1)
@@ -235,12 +235,12 @@ class SurfacePlannerNode():
         self.onoff = False
 
         # ROS publishers and subscribers
-        if self.planeseg:
-            self.hull_marker_array_sub = rospy.Subscriber(self._planeseg_topic,
+        if self.plane_seg:
+            self.hull_marker_array_sub = rospy.Subscriber(self._plane_seg_topic,
                                                         MarkerArray,
                                                         self.hull_marker_array_callback,
                                                         queue_size=10)
-        self.fsteps_manager_sub = rospy.Subscriber(self._fstep_manager_topic,
+        self.fsteps_manager_sub = rospy.Subscriber(self._footstep_manager_topic,
                                                    GaitStatusOnNewPhase,
                                                    self.footstep_manager_callback,
                                                    queue_size=10)
@@ -258,7 +258,7 @@ class SurfacePlannerNode():
         self._cmd_vel[5] = msg.angular.z
 
     def hull_marker_array_callback(self, msg):
-        """ Filter and store incoming convex surfaces from planeseg.
+        """ Filter and store incoming convex surfaces from plane_seg.
         """
         print("\n -----Marker array received-----   \n")
         self.surfaces_processed = self.surface_processing.run(self._q[:3], msg)
