@@ -27,10 +27,11 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import rospy
+import numpy as np
+
 from footstep_msgs.msg import GaitStatusOnNewPhase
 from std_msgs.msg import Float64MultiArray, MultiArrayDimension
-import numpy as np
+import rospy
 
 
 class StepManagerPublisher():
@@ -105,28 +106,3 @@ class StepManagerInterface():
         q_filter[:] = msg.q_filter[:]
 
         return gait, foot_pos, q_filter
-
-
-class Surface():
-
-    def __init__(self, A, b, vertices):
-        """Initialize the surface.
-
-        Args :
-        - A (array nx3): Inequality matrix.
-        - b (array x n): Inequality vector.
-        - vertices (array 3 x n): Vertices with the format:
-                                array([[x0, x1, ... , xn],
-                                       [y0, y1, ... , yn],
-                                       [z0, z1, ... , zn]])
-        """
-        if A.shape[1] != 3:
-            raise ArithmeticError(
-                "Number column of the inequality array should be 3.")
-        if vertices.shape[0] != 3:
-            raise ArithmeticError(
-                "Number of rows of the vertice array should be 3.")
-
-        self.A = A
-        self.b = b
-        self.vertices = vertices

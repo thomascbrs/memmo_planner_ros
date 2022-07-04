@@ -43,11 +43,11 @@ from visualization_msgs.msg import Marker, MarkerArray
 from whole_body_state_subscriber_py import WholeBodyStateSubscriber
 
 from footstep_msgs.msg import GaitStatusOnNewPhase, SetSurfaces
-from walkgen_surface_planner import SurfacePlanner
-from surface_planner_ros.surface_planner_interface import SurfacePublisher
 from surface_planner_ros.step_manager_interface import StepManagerInterface
+from surface_planner_ros.surface_planner_interface import SurfacePublisher
 from surface_planner_ros.world_visualization import WorldVisualization
 
+from walkgen_surface_planner import SurfacePlanner
 from walkgen_surface_planner.params import SurfacePlannerParams
 from walkgen_surface_processing.surface_detector import SurfaceDetector
 from walkgen_surface_processing.surface_processing import SurfaceProcessing
@@ -174,6 +174,7 @@ class SurfacePlannerNode():
             else:
                 rospy.loginfo("Waiting for MPC-Walkgen")
                 sleep(1)
+
         self._params_planner.typeGait = rospy.get_param(rospy.get_param(nodeName + "/typeGait"))
         self._params_planner.N_ss = rospy.get_param(rospy.get_param(nodeName + "/N_ss"))
         self._params_planner.N_ds = rospy.get_param(rospy.get_param(nodeName + "/N_ds"))
@@ -188,6 +189,7 @@ class SurfacePlannerNode():
         self._params_planner.fitsize_y = rospy.get_param(nodeName + "/fitsize_y")
         self._params_planner.fitlength = rospy.get_param(nodeName + "/fitlength")
         self._params_planner.recompute_slope = rospy.get_param(nodeName + "/recompute_slope")
+
         # Surface planner
         self.surface_planner = SurfacePlanner(self._params_planner)
 
@@ -209,18 +211,18 @@ class SurfacePlannerNode():
 
         # Visualization tools
         if self._visualization:
-            self._visualization_pub = WorldVisualization("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
+            self.world_visualization = WorldVisualization("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
             if not self.plane_seg: # Publish URDF environment
                 print("Publishing world...")
-                # self._visualization_pub = WalkgenVisualizationPublisher("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
+                # self.world_visualization = WalkgenVisualizationPublisher("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
                 sleep(1.) # Not working otherwise
                 worldMesh = self._params_processing.path + self._params_processing.stl
                 worldPose = self._q
                 worldPose[2] = initial_height
-                self._visualization_pub.publish_world(worldMesh, worldPose, frame_id=self._worldFrame)
+                self.world_visualization.publish_world(worldMesh, worldPose, frame_id=self._worldFrame)
 
                 surfaces = [np.array(value).T for value in all_surfaces.values()]
-                self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
+                self.world_visualization.publish_surfaces(surfaces, frame_id=self._worldFrame)
 
         # Surface filtered
         self.surfaces_processed = None
@@ -247,7 +249,7 @@ class SurfacePlannerNode():
                                                    GaitStatusOnNewPhase,
                                                    self.footstep_manager_callback,
                                                    queue_size=10)
-        self.surfacesplanner_pub = SurfacePublisher(self._surface_planner_topic)
+        self.surface_planner_pub = SurfacePublisher(self._surface_planner_topic)
 
         # Stepmanager interface for message conversion.
         self._stepmanager_iface = StepManagerInterface()
@@ -268,7 +270,7 @@ class SurfacePlannerNode():
         self._newSurfaces = True
         self._firstSetSurfaces = True
         surfaces = [np.array(value).T for key,value in self.surfaces_processed.items()]
-        self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
+        self.world_visualization.publish_surfaces(surfaces, frame_id=self._worldFrame)
 
     def footstep_manager_callback(self, msg):
         """ Extract data from foostep manager.
@@ -314,16 +316,21 @@ class SurfacePlannerNode():
                 print("SL1M optimisation took [ms] : ", 1000 * (t1 - t0))
                 if self._visualization:
                     t0 = clock()
-                    self._visualization_pub.publish_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
-                    self._visualization_pub.publish_fsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                    # Publish world config
+                    self.world_visualization.publish_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+
+                    # Publish world footsteps
+                    self.world_visualization.publish_fsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+
+                    # Publish world surfaces
                     surfaces = [np.array(value).T for key,value in self.surface_planner.all_surfaces.items()]
-                    self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
+                    self.world_visualization.publish_surfaces(surfaces, frame_id=self._worldFrame)
                     t1 = clock()
                     print("Publisher for visualization took [ms] : ", 1000 * (t1 - t0))
 
-                # Publish the surfaces.
+                # Publish surfaces
                 t0 = clock()
-                self.surfacesplanner_pub.publish(0.5, selected_surfaces)
+                self.surface_planner_pub.publish(0.5, selected_surfaces)
                 t1 = clock()
                 print("Publisher took [ms] : ", 1000 * (t1 - t0))
 
