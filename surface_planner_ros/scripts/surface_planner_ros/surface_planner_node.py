@@ -36,20 +36,23 @@ from time import sleep
 import pinocchio
 import warnings
 
+from geometry_msgs.msg import Twist
 import rospy
 import tf
-from footstep_msgs.msg import GaitStatusOnNewPhase
-from visualization_msgs.msg import MarkerArray
+from visualization_msgs.msg import Marker, MarkerArray
 from whole_body_state_subscriber_py import WholeBodyStateSubscriber
-from geometry_msgs.msg import Twist
 
-import walkgen_surface_planner.SurfacePlanner as SurfacePlanner
-from walkgen_ros.WalkgenRosMessageConversion import SurfacePublisher, StepManagerInterface
+from footstep_msgs.msg import GaitStatusOnNewPhase, SetSurfaces
+from walkgen_surface_planner import SurfacePlanner
+from surface_planner_ros.surface_planner_interface import SurfacePublisher
+from surface_planner_ros.step_manager_interface import StepManagerInterface
+from surface_planner_ros.world_visualization import WorldVisualization
+
 from walkgen_surface_planner.params import SurfacePlannerParams
-from walkgen_ros.WalkgenRosVisualization import WalkgenVisualizationPublisher
 from walkgen_surface_processing.surface_detector import SurfaceDetector
 from walkgen_surface_processing.surface_processing import SurfaceProcessing
 from walkgen_surface_processing.params import SurfaceProcessingParams
+
 
 class SurfacePlannerNode():
 
@@ -206,7 +209,7 @@ class SurfacePlannerNode():
 
         # Visualization tools
         if self._visualization:
-            self._visualization_pub = WalkgenVisualizationPublisher("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
+            self._visualization_pub = WorldVisualization("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
             if not self.plane_seg: # Publish URDF environment
                 print("Publishing world...")
                 # self._visualization_pub = WalkgenVisualizationPublisher("surface_planner/visualization_marker", "surface_planner/visualization_marker_array")
