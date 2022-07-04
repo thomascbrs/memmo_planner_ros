@@ -1,19 +1,36 @@
 memmo_teleop:
   # Rewrite this chunk... Simplify using struct
-  lin_vel_x_limit: 0.5
-  lin_vel_x_step_size: 0.01
+  # Linear velocity [m.s-1]
+  vel_x_limit: 0.15
+  vel_x_step_size: 0.01
 
-  lin_vel_y_limit: 0.5
-  lin_vel_y_step_size: 0.01
+  vel_y_limit: 0.15
+  vel_y_step_size: 0.01
 
-  lin_vel_z_limit: 0.5
-  lin_vel_z_step_size: 0.01
+  vel_z_limit: 0.1
+  vel_z_step_size: 0.01
 
-  ang_vel_x_limit: 0.5
-  ang_vel_x_step_size: 0.10
+  # Angular velocities [rad.s-1]
+  vel_roll_limit: 0.1
+  vel_roll_step_size: 0.01
 
-  ang_vel_y_limit: 0.5
-  ang_vel_y_step_size: 0.10
+  vel_pitch_limit: 0.1
+  vel_pitch_step_size: 0.01
 
-  ang_vel_z_limit: 0.5
-  ang_vel_z_step_size: 0.10
+  vel_yaw_limit: 0.15
+  vel_yaw_step_size: 0.01
+
+  # Method to control the velocity
+  # 0 --> Continusous value from joystick publishing
+  # 1 --> Increase step by step the velocity
+  method_id: 1
+
+  # Filtering parameters
+  cutoff_frequency: 5 # [Hz] 0.04 for method 1
+  publishing_rate: 30 # [Hz]
+
+  # Dead zone
+  dead_zone_step: 0.99 # method 1
+  dead_zone_x: 0.05 # method 0
+  dead_zone_y: 0.05 # method 0
+  dead_zone_yaw: 0.05 # method 0

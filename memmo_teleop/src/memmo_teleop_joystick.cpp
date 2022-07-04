@@ -34,107 +34,149 @@ MemmoTeleopJoystick::MemmoTeleopJoystick() : nh_(""), private_nh_("~")
   // Init ROS parameter
   // TODO(JaehyunShim): Reset default values.
   // TODO(JaehyunShim): Simplify using struct.
-  private_nh_.param<double>("lin_vel_x_limit", lin_vel_x_limit_, 0.5);
-  private_nh_.param<double>("lin_vel_x_step_size", lin_vel_x_step_size_, 0.01);
+  std::string nodeName = "/memmo_teleop";
 
-  private_nh_.param<double>("lin_vel_y_limit", lin_vel_y_limit_, 0.5);
-  private_nh_.param<double>("lin_vel_y_step_size", lin_vel_y_step_size_, 0.01);
+  // Velocity limit and step size
+  private_nh_.param<double>(nodeName + "/vel_x_limit", vel_x_limit_, 0.5);
+  private_nh_.param<double>(nodeName + "/vel_x_step_size", vel_x_step_size_, 0.01);
 
-  private_nh_.param<double>("lin_vel_z_limit", lin_vel_z_limit_, 0.5);
-  private_nh_.param<double>("lin_vel_z_step_size", lin_vel_z_step_size_, 0.01);
+  private_nh_.param<double>(nodeName + "/vel_y_limit", vel_y_limit_, 0.5);
+  private_nh_.param<double>(nodeName + "vel_y_step_size", vel_y_step_size_, 0.01);
 
-  private_nh_.param<double>("ang_vel_x_limit", ang_vel_x_limit_, 0.5);
-  private_nh_.param<double>("ang_vel_x_step_size", ang_vel_x_step_size_, 0.10);
+  private_nh_.param<double>(nodeName + "/vel_z_limit", vel_z_limit_, 0.5);
+  private_nh_.param<double>(nodeName + "/vel_z_step_size", vel_z_step_size_, 0.01);
 
-  private_nh_.param<double>("ang_vel_y_limit", ang_vel_y_limit_, 0.5);
-  private_nh_.param<double>("ang_vel_y_step_size", ang_vel_y_step_size_, 0.10);
+  private_nh_.param<double>(nodeName + "/vel_roll_limit", vel_roll_limit_, 0.5);
+  private_nh_.param<double>(nodeName + "/vel_roll_step_size", vel_roll_step_size_, 0.10);
 
-  private_nh_.param<double>("ang_vel_z_limit", ang_vel_z_limit_, 0.5);
-  private_nh_.param<double>("ang_vel_z_step_size", ang_vel_z_step_size_, 0.10);
+  private_nh_.param<double>(nodeName + "/vel_pitch_limit", vel_pitch_limit_, 0.5);
+  private_nh_.param<double>(nodeName + "/vel_pitch_step_size", vel_pitch_step_size_, 0.10);
+
+  private_nh_.param<double>(nodeName + "/vel_yaw_limit", vel_yaw_limit_, 0.15);
+  private_nh_.param<double>(nodeName + "/vel_yaw_step_size", vel_yaw_step_size_, 0.01);
+
+  // Method to control the velocity
+  // 0 --> Continusous value from joystick publishing
+  // 1 --> Increase step by step the velocity
+  private_nh_.param<int>(nodeName + "/method_id", method_id_, 0);
+
+  // Filtering parameters
+  private_nh_.param<double>(nodeName + "/publishing_rate", publishing_rate_, 0.5);
+  private_nh_.param<double>(nodeName + "/cutoff_frequency", cutoff_frequency_, 0.5);
+
+  // Dead zone sensibility
+  private_nh_.param<double>(nodeName + "/dead_zone_x", dead_zone_x_, 0.01);
+  private_nh_.param<double>(nodeName + "/dead_zone_y", dead_zone_y_, 0.01);
+  private_nh_.param<double>(nodeName + "/dead_zone_yaw", dead_zone_yaw_, 0.01);
+  private_nh_.param<double>(nodeName + "/dead_zone_step", dead_zone_step_, 0.99);
+
+  ROS_INFO("Using method : %d", method_id_);
 
   // Init ROS publisher and subscriber
   // TODO(JaehyunShim): Need more consideration on queue size
   cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("cmd_vel", 10);
   joy_sub_ = nh_.subscribe("joy", 10, &MemmoTeleopJoystick::joy_callback, this);
 
-  // Print out joystick operation
-  print_joyop();
+  // Create a ROS timer for publishing cmd velocity
+  timer_publisher_ = nh_.createTimer(ros::Duration(1.0 / publishing_rate_), std::bind(&MemmoTeleopJoystick::timer_callback, this));
+
+  // cutoff frequency [Hz]
+  beta_ = std::exp(-2*M_PI*cutoff_frequency_*(1/publishing_rate_));
+  vel_joystick_ = Eigen::Matrix<double, 6, 1>::Zero();
+  vel_filtered_ = Eigen::Matrix<double, 6, 1>::Zero();
+  first_joy_received_ = false;
 }
 
 MemmoTeleopJoystick::~MemmoTeleopJoystick()
 {
   // Stop robot
-  send_cmd_vel(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+  // send_cmd_vel(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+}
+
+void MemmoTeleopJoystick::timer_callback(){
+  if (first_joy_received_){
+    vel_filtered_ = beta_ * vel_filtered_ + (1-beta_)*vel_joystick_;
+    send_cmd_vel(vel_filtered_[0], vel_filtered_[1], vel_filtered_[2], vel_filtered_[3], vel_filtered_[4], vel_filtered_[5]);
+  }
 }
 
 // Reference: http://wiki.ros.org/joy
 void MemmoTeleopJoystick::joy_callback(const sensor_msgs::Joy::ConstPtr & msg)
 {
-  static uint8_t count = 0;
-  static double lin_vel_ref = 0.0;
-  static double ang_vel_z_ref = 0.0;
-
-  // TODO(JaehyunShim): Key recheck needed
-
-  if (msg->axes.at(3) <= -0.9)
-  {  // Boost x, y direction speed
+  if (method_id_ == 0){
+    update_joystick_continuous(msg);
   }
-
-  if (msg->axes.at(3) <= -0.9)
-  {  // Boost yaw direction speed
+  if (method_id_ == 1){
+    update_joystick_step(msg);
   }
+  if (!first_joy_received_){
+    first_joy_received_ = true;
+  }
+}
 
-  if (msg->axes.at(1) >= 0.9)
+void MemmoTeleopJoystick::update_joystick_step(const sensor_msgs::Joy::ConstPtr & msg){
+  if (msg->axes.at(1) >= dead_zone_step_)
   {  // Move in x direction
-    send_cmd_vel(1.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    vel_joystick_[0] += vel_x_step_size_;
   }
-  else if (msg->axes.at(1) <= -0.9)
-  {
-    send_cmd_vel(-1.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+  if (msg->axes.at(1) <= - dead_zone_step_)
+  {  // Move in -x direction
+    vel_joystick_[0] -= vel_x_step_size_;
   }
-  else if (msg->axes.at(0) >= 0.9)
+  if (msg->axes.at(0) >= dead_zone_step_)
   {  // Move in y direction
-    send_cmd_vel(0.0, 1.0, 0.0, 0.0, 0.0, 0.0);
+    vel_joystick_[1] += vel_y_step_size_;
   }
-  else if (msg->axes.at(0) <= -0.9)
-  {
-    send_cmd_vel(0.0, -1.0, 0.0, 0.0, 0.0, 0.0);
+  if (msg->axes.at(0) <= - dead_zone_step_)
+  {  // Move in -y direction
+    vel_joystick_[1] -= vel_y_step_size_;
   }
-  else if (msg->axes.at(2) >= 0.9)
+  if (msg->axes.at(2) >= dead_zone_step_)
   {  // Move in yaw direction
-    send_cmd_vel(0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
+    vel_joystick_[5] += vel_yaw_step_size_;
   }
-  else if (msg->axes.at(2) <= -0.9)
-  {
-    send_cmd_vel(0.0, 0.0, 0.0, 0.0, 0.0, -1.0);
+  if (msg->axes.at(2) <= - dead_zone_step_)
+  {  // Move in -yaw direction
+    vel_joystick_[5] -= vel_yaw_step_size_;
   }
-  else if (msg->buttons.at(6) == 0)
-  {  // Stop
-    send_cmd_vel(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-  }
+  vel_joystick_[0] = enforce_vel_limit(vel_joystick_[0], vel_x_limit_);
+  vel_joystick_[1] = enforce_vel_limit(vel_joystick_[1], vel_y_limit_);
+  vel_joystick_[2] = enforce_vel_limit(vel_joystick_[2], vel_z_limit_);
+  vel_joystick_[3] = enforce_vel_limit(vel_joystick_[3], vel_roll_limit_);
+  vel_joystick_[4] = enforce_vel_limit(vel_joystick_[4], vel_pitch_limit_);
+  vel_joystick_[5] = enforce_vel_limit(vel_joystick_[5], vel_yaw_limit_);
+}
 
-  // Print keyboard operation every 10 commands
-  count += 1;
-  if (count == 10)
-  {
-    print_joyop();
-    count = 0;
+void MemmoTeleopJoystick::update_joystick_continuous(const sensor_msgs::Joy::ConstPtr & msg){
+  if (msg->axes.at(1) >= dead_zone_x_)
+  {  // Move in x direction
+    vel_joystick_[0] = msg->axes.at(1) * vel_x_limit_;
+  }
+  if (msg->axes.at(1) <= -dead_zone_x_)
+  { // Move in -x direction
+    vel_joystick_[0] = msg->axes.at(1) * vel_x_limit_;
+  }
+  if (msg->axes.at(0) >= dead_zone_y_)
+  {  // Move in y direction
+    vel_joystick_[1] = msg->axes.at(0) * vel_y_limit_ ;
+  }
+  if (msg->axes.at(0) <= -dead_zone_y_)
+  { // Move in -y direction
+    vel_joystick_[1] = msg->axes.at(0) * vel_y_limit_;
+  }
+  if (msg->axes.at(2) >= dead_zone_yaw_)
+  {  // Move in yaw direction
+    vel_joystick_[5] = msg->axes.at(2) * vel_yaw_limit_;
+  }
+  if (msg->axes.at(2) <= -dead_zone_yaw_)
+  { // Move in -yaw direction
+    vel_joystick_[5] = msg->axes.at(2) * vel_yaw_limit_;
   }
 }
 
 void MemmoTeleopJoystick::print_joyop()
 {
   // TODO(JaehyunShim): Rewrite .. Better keyop?
-  ROS_INFO("Joy Operation\n");
-  ROS_INFO("----------------------------------------\n");
-  ROS_INFO("Left Stick u/d: Forward/Backward Velocity\n");
-  ROS_INFO("Left Stick l/r: Left/Right Velocity\n");
-  ROS_INFO("Right Stick l/r: Angular Velocity\n");
-  ROS_INFO("L2 Button: Stop\n\n");
-
-  ROS_INFO("Forward/Backward Velocity Limit %.1lf\n", lin_vel_x_limit_);
-  ROS_INFO("Left/Right Velocity Limit %.1lf\n", lin_vel_y_limit_);
-  ROS_INFO("Angular Velocity Limit %.1lf\n", ang_vel_z_limit_);
 }
 
 // TODO(JaehyunShim): Add smoother
@@ -145,20 +187,17 @@ void MemmoTeleopJoystick::send_cmd_vel(double vel_lin_x, double vel_lin_y, doubl
 {
   // Enforce velocity limit
   geometry_msgs::Twist cmd_vel_msg;
-  cmd_vel_msg.linear.x = enforce_vel_limit(vel_lin_x, lin_vel_x_limit_);
-  cmd_vel_msg.linear.y = enforce_vel_limit(vel_lin_y, lin_vel_y_limit_);
-  cmd_vel_msg.linear.z = enforce_vel_limit(vel_lin_z, lin_vel_z_limit_);
-  cmd_vel_msg.angular.x = enforce_vel_limit(vel_ang_x, ang_vel_x_limit_);
-  cmd_vel_msg.angular.y = enforce_vel_limit(vel_ang_y, ang_vel_y_limit_);
-  cmd_vel_msg.angular.z = enforce_vel_limit(vel_ang_z, ang_vel_z_limit_);
+  cmd_vel_msg.linear.x = vel_lin_x;
+  cmd_vel_msg.linear.y = vel_lin_y;
+  cmd_vel_msg.linear.z = vel_lin_z;
+  cmd_vel_msg.angular.x = vel_ang_x;
+  cmd_vel_msg.angular.y = vel_ang_y;
+  cmd_vel_msg.angular.z = vel_ang_z;
   cmd_vel_pub_.publish(cmd_vel_msg);
 
-  ROS_INFO("vel_lin_x:: %.2lf\n", vel_lin_x);
-  ROS_INFO("vel_lin_y: %.2lf\n", vel_lin_y);
-  ROS_INFO("vel_lin_z: %.2lf\n", vel_lin_z);
-  ROS_INFO("vel_ang_x:: %.2lf\n", vel_ang_x);
-  ROS_INFO("vel_ang_y: %.2lf\n", vel_ang_y);
-  ROS_INFO("vel_ang_z: %.2lf\n", vel_ang_z);
+  ROS_INFO("\nvel_lin_x: %.4lf\n", cmd_vel_msg.linear.x);
+  ROS_INFO("vel_lin_y: %.4lf\n", cmd_vel_msg.linear.y);
+  ROS_INFO("vel_lin_yaw: %.4lf\n", cmd_vel_msg.angular.z);
 }
 
 double MemmoTeleopJoystick::enforce_vel_limit(double vel, double limit)

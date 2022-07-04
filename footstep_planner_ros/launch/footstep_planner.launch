@@ -1,3 +1,0 @@
-<launch>
-  <node pkg="footstep_planner_ros" type="main.py" name="footstep_planner" output="screen"/>
-</launch>

@@ -4,8 +4,8 @@
   <!-- Define the odom and world frame -->
   <!-- Robot's current state and reference are expressed in the odom frame (a smooth frame that drifts with respect to the world frame). -->
   <!-- The world frame is used to define the MPC tasks (e.g., footstep location), thus, it doesn't drift this frame. -->
-  <arg name="odom_frame" default="odom" />
-  <arg name="world_frame" default="point_cloud_odom" /> <!-- Use odom_frame is this param is empty -->
+  <arg name="odom_frame" default="map" />
+  <arg name="world_frame" default="map" /> <!-- Use odom_frame is this param is empty -->
 
   <!-- Define the topic name for subscrition and publication of the MPC node -->
   <!-- Note that the robot state and MPC references needs to be expressed in the odom frame. -->
@@ -15,17 +15,15 @@
   <!-- Define the robot description: URDF, feet, nominal posture, locked joints, and armature -->
   <arg name="joints_to_be_locked" default="[actuated_lidar_dynamixel]"/>
   <!-- <arg name="joints_to_be_locked" default="[]" /> -->
-  <arg name="robot_description" default="anymal_description" />
+  <arg name="robot_description" default="robot_description" />
   <arg name="3d_feet" default="[LF_FOOT, LH_FOOT, RF_FOOT, RH_FOOT]" />
 
   <!-- Use URDF of the environment or planeseg visualisation. -->
-  <arg name="planeseg" value="True" />
+  <arg name="planeseg" value="False" />
 
-  
   <!-- Planeseg parameters for postprocessing -->
-  <!-- <arg name="margin" value="0.085" /> Margin in [m] inside the convex surfaces without planeseg-->
-  <arg name="margin" value="0.06" />
-  <arg name="n_points" value="10" /> <!-- Maximum Number of points for for each convex surface -->
+  <arg name="margin" value="0.065" /> <!-- Margin in [m] inside the convex surfaces -->
+  <arg name="n_points" value="6" /> <!-- Maximum Number of points for for each convex surface -->
   <!-- Method to remove the overlapping between surfaces :
   1. Run the list of surfaces starting with the lowest.
   2. Decomposes the lowest surface in set of convex ones by removing the upper surfaces that overlap it. (Tesselation algorithm).
@@ -59,10 +57,7 @@
 
   <!-- Heightmap and URDF path -->
   <arg name="path" default="/home/thomas_cbrs/Desktop/edin/memmo_anymal/walkgen_surface_processing/python/walkgen_surface_processing" />
-  <!-- Stairs up -->
-  <!-- <arg name="stl" default="/data/meshes/lab_scene.stl" />  -->
-  <!-- Stairs down -->
-  <arg name="stl" default="/data/meshes/lab_scene_2.stl" />
+  <arg name="stl" default="/data/meshes/lab_scene.stl" />
 
   <!-- Topic to exchange with footstepplanner -->
   <arg name="fstep_manager_topic" default="/walkgen/fstep_manager" />
@@ -81,7 +76,7 @@
     <param name="robot_state_topic" value="$(arg robot_state_topic)" />
     <param name="planeseg" value="$(arg planeseg)" />
     <param name="margin" value="$(arg margin)" />
-    <param name="n_points" value="$(arg n_points)" />
+    <param name="n_points" value="$(arg margin)" />
     <param name="method_id" value="$(arg method_id)" />
     <param name="poly_size" value="$(arg poly_size)" />
     <param name="min_area" value="$(arg min_area)" />

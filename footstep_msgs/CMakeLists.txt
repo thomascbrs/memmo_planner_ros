@@ -10,8 +10,11 @@ find_package(catkin REQUIRED
 
 add_message_files(
   FILES
-    FootstepTrajectory.msg
-    FootstepTrajectoryPoint.msg
+    FootSurfaces.msg
+    FootPosition.msg
+    GaitStatusOnNewPhase.msg
+    SetSurfaces.msg
+    ConvexSurface.msg
 )
 
 generate_messages(
