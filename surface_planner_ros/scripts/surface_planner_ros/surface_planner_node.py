@@ -66,6 +66,7 @@ class SurfacePlannerNode():
                 rospy.loginfo("URDF not yet available on topic " + rospy.get_param(nodeName + "/urdf_xml") +
                               " - waiting")
                 sleep(1)
+
         # Define frames
         self._odomFrame = rospy.get_param(nodeName + "/odom_frame")
         self._worldFrame = rospy.get_param(nodeName + "/world_frame")
@@ -191,7 +192,7 @@ class SurfacePlannerNode():
         self.surface_processing = SurfaceProcessing(initial_height= initial_height, params = self._params_processing)
         self._firstSetSurfaces = False
 
-        if not self.planeseg:   
+        if not self.planeseg:
             self._firstSetSurfaces = True # Always available using planeseg
             # Extract surfaces from URDF file.
             # surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
@@ -225,7 +226,7 @@ class SurfacePlannerNode():
         # Velocity suscriber
         self._cmd_vel = np.zeros(6)
         # self._cmd_vel[0] = 0.05
-        self._vel_sub = rospy.Subscriber("/cmd_vel", Twist, self.velocity_callback, queue_size=1)
+        self.cmd_vel_sub = rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_callback, queue_size=1)
         self.gait = None
         self.fsteps = np.zeros((3, 4))
         self.q_filter = np.zeros(7)
@@ -241,7 +242,7 @@ class SurfacePlannerNode():
                                                         queue_size=10)
         self.fsteps_manager_sub = rospy.Subscriber(self._fstep_manager_topic,
                                                    GaitStatusOnNewPhase,
-                                                   self.fsteps_manager_callback,
+                                                   self.footstep_manager_callback,
                                                    queue_size=10)
         self.surfacesplanner_pub = SurfacePublisher(self._surface_planner_topic)
 
@@ -251,34 +252,35 @@ class SurfacePlannerNode():
         # ROS timer
         self.timer = rospy.Timer(rospy.Duration(0.001), self.timer_callback)
 
-    def velocity_callback(self, data):
-        self._cmd_vel[0] = data.linear.x
-        self._cmd_vel[1] = data.linear.y
-        self._cmd_vel[5] = data.angular.z
+    def cmd_vel_callback(self, msg):
+        self._cmd_vel[0] = msg.linear.x
+        self._cmd_vel[1] = msg.linear.y
+        self._cmd_vel[5] = msg.angular.z
 
-    def hull_marker_array_callback(self, data):
+    def hull_marker_array_callback(self, msg):
         """ Filter and store incoming convex surfaces from planeseg.
         """
         print("\n -----Marker array received-----   \n")
-        self.surfaces_processed = self.surface_processing.run(self._q[:3], data)
+        self.surfaces_processed = self.surface_processing.run(self._q[:3], msg)
         self._newSurfaces = True
         self._firstSetSurfaces = True
         surfaces = [np.array(value).T for key,value in self.surfaces_processed.items()]
         self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
 
-    def fsteps_manager_callback(self, data):
+    def footstep_manager_callback(self, msg):
         """ Extract data from foostep manager.
         """
-        self.gait, self.fsteps, q_filter = self._stepmanager_iface.writeFromMessage(data)
+        self.gait, self.fsteps, q_filter = self._stepmanager_iface.writeFromMessage(msg)
         self.q_filter[:3] = q_filter[:3]
         self.q_filter[3:7] = pinocchio.Quaternion(pinocchio.rpy.rpyToMatrix(q_filter[3:])).coeffs()
+
         # Turn on planner
         self.onoff = True
 
     def timer_callback(self, event):
-        if self.onoff == True and self._firstSetSurfaces:
-
+        if self.onoff and self._firstSetSurfaces:
             t_init, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
+
             # Update the drift between the odom and world frames
             if self._useDriftCompensation:
                 try:
@@ -288,6 +290,7 @@ class SurfacePlannerNode():
                     self._mMo.rotation = self._rot.toRotationMatrix()
                 except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                     raise ArithmeticError("Problem with tf transform")
+
             # Map the current state from odom to world frame
             self._oMb.translation[:] = q[:3]
             self._rot.x, self._rot.y, self._rot.z, self._rot.w = q[3:7]
@@ -296,11 +299,13 @@ class SurfacePlannerNode():
             self._q = q[:7]
 
             t0 = clock()
+
             # Start an optimisation
             if self._newSurfaces:
-                self.surface_planner.set_surfaces(self.surfaces_processed) # update surfaces
+                self.surface_planner.set_surfaces(self.surfaces_processed)  # update surfaces
                 self._newSurfaces = False
             selected_surfaces = self.surface_planner.run(self.q_filter, self.gait, self._cmd_vel, self.fsteps)
+
             if self.surface_planner.pb_data.success:
                 t1 = clock()
                 print("SL1M optimisation took [ms] : ", 1000 * (t1 - t0))
@@ -312,10 +317,12 @@ class SurfacePlannerNode():
                     self._visualization_pub.publish_surfaces(surfaces, frame_id=self._worldFrame)
                     t1 = clock()
                     print("Publisher for visualization took [ms] : ", 1000 * (t1 - t0))
+
                 # Publish the surfaces.
                 t0 = clock()
                 self.surfacesplanner_pub.publish(0.5, selected_surfaces)
                 t1 = clock()
                 print("Publisher took [ms] : ", 1000 * (t1 - t0))
-            # Turn of switch
+
+            # Turn off planner
             self.onoff = False

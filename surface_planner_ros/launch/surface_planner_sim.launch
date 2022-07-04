@@ -56,8 +56,8 @@
   <arg name="N_uds" default="walkgen/N_uds" />
 
   <!-- Heightmap and URDF path -->
-  <arg name="path" default="/home/thomas_cbrs/Desktop/edin/memmo_anymal/walkgen_surface_processing/python/walkgen_surface_processing" />
-  <arg name="stl" default="/data/meshes/lab_scene.stl" />
+  <arg name="path" default="/usr/local/share/uoe_lab_resources" />
+  <arg name="stl" default="/meshes/lab_scene.stl" />
 
   <!-- Topic to exchange with footstepplanner -->
   <arg name="fstep_manager_topic" default="/walkgen/fstep_manager" />

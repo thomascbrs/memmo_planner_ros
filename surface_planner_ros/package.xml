@@ -4,9 +4,11 @@
   <version>0.0.0</version>
   <description>ROS package for surface_planner_ros</description>
   <maintainer email="jshim@ed.ac.uk">Jaehyun Shim</maintainer>
+  <maintainer email="t.corberes@sms.ed.ac.uk">Thomas Corberes</maintainer>
   <license>BSD</license>
   <url type="repository">https://github.com/JaehyunShim/memmo_planner_ros</url>
   <author email="jshim@ed.ac.uk">Jaehyun Shim</author>
+  <author email="t.corberes@sms.ed.ac.uk">Thomas Corberes</author>
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>rospy</depend>
