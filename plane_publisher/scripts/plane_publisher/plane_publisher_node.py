@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+#
+# Copyright 2022 University of Edinburgh
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#  * Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#  * Neither the name of  nor the names of its contributors may be used to
+#    endorse or promote products derived from this software without specific
+#    prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+# import rospy
+# from footstep_msgs.msg import FootstepTrajectory
+# from visualization_msgs.msg import MarkerArray
+
+
+import numpy as np
+import pinocchio
+
+import rospy
+import tf
+from visualization_msgs.msg import Marker, MarkerArray
+from whole_body_state_subscriber_py import WholeBodyStateSubscriber
+
+from plane_publisher.world_visualization import WorldVisualization
+from walkgen_surface_processing.surface_detector import SurfaceDetector
+from walkgen_surface_processing.surface_processing import SurfaceProcessing
+from walkgen_surface_processing.params import SurfaceProcessingParams
+
+
+class PlanePublisherNode():
+
+    def __init__(self):
+
+        # Define frames
+        self.odom_frame = rospy.get_param("~odom_frame")
+        self.world_frame = rospy.get_param("~world_frame")
+        if self.world_frame == str():
+            self.world_frame = self.odom_frame
+        self.use_drift_compensation = (self.odom_frame != self.world_frame)
+        if not self.use_drift_compensation:
+            rospy.loginfo("World and odom frame are identical. Drift compensation is not used.")
+
+        # Wait for URDF. Get state of the robot to adapt the surface height.
+        while not rospy.is_shutdown():
+            if rospy.has_param(rospy.get_param("~robot_description")):
+                break
+            else:
+                rospy.loginfo("URDF not yet available on topic " + rospy.get_param("~robot_description") +
+                              " - waiting")
+                rospy.sleep(1.)
+        urdf_xml = rospy.get_param(rospy.get_param("~robot_description"))
+        self.feet_3d_names = rospy.get_param("~3d_feet")
+        robot_state_topic = rospy.get_param("~robot_state_topic")
+        locked_joint_names = rospy.get_param("~joints_to_be_locked")
+        self._model = pinocchio.buildModelFromXML(urdf_xml, pinocchio.JointModelFreeFlyer())
+        locked_joint_ids = pinocchio.StdVec_Index()
+        for name in locked_joint_names:
+            if self._model.existJointName(name):
+                locked_joint_ids.append(self._model.getJointId(name))
+            else:
+                rospy.logwarn("The " + name + " cannot be locked as it doesn't belong to the full model")
+        if len(locked_joint_ids) > 0:
+            self._model = pinocchio.buildReducedModel(self._model, locked_joint_ids, pinocchio.neutral(self._model))
+        self._data = self._model.createData()
+        self._ws_sub = WholeBodyStateSubscriber(self._model, robot_state_topic, frame_id=self.odom_frame)
+        self._tf_listener = tf.TransformListener()
+        self._rot = pinocchio.Quaternion(np.array([0., 0., 0., 1.]))
+        self._mMo = pinocchio.SE3(self._rot, np.zeros(3))
+        self._oMb = pinocchio.SE3(self._rot, np.zeros(3))
+        self._mMb = pinocchio.SE3(self._rot, np.zeros(3))
+
+        # Compute the average height of the robot
+        print("\n Initialize height of the initial surface... \n")
+        counter_height = 0
+        height_ = []
+        offset_height = -0.85
+        q0 = None
+        while not rospy.is_shutdown() and counter_height < 20:
+            if self._ws_sub.has_new_whole_body_state_message():
+                t0, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
+
+                # Update the drift between the odom and world frames
+                if self.use_drift_compensation:
+                    try:
+                        self._mMo.translation[:], (self._rot.x, self._rot.y, self._rot.z,
+                                                   self._rot.w) = self._tf_listener.lookupTransform(
+                                                       self.world_frame, self.odom_frame, rospy.Time())
+                        self._mMo.rotation = self._rot.toRotationMatrix()
+                    except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                        pass
+                # Map the current state from odom to world frame
+                self._oMb.translation[:] = q[:3]
+                self._rot.x, self._rot.y, self._rot.z, self._rot.w = q[3:7]
+                self._oMb.rotation = self._rot.toRotationMatrix()
+                q[:7] = pinocchio.SE3ToXYZQUAT(self._mMo.act(self._oMb))
+
+                pinocchio.forwardKinematics(self._model, self._data, q)
+                pinocchio.updateFramePlacements(self._model, self._data)
+                h = 0
+                for name in self.feet_3d_names:
+                    frameId = self._model.getFrameId(name)
+                    h += self._data.oMf[frameId].translation[2]
+                height_.append(h/4)
+                counter_height += 1
+                q0 = q
+                rospy.sleep(0.1)
+            elif counter_height == 0:
+                rospy.loginfo("Waiting for a new whole body state message.")
+                rospy.sleep(1.)
+
+        print("Initial configuration in world frame : ", q0[:7])
+        self._q = q0[:7]
+        print("Average height for initial surface : ", np.mean(height_))
+        print("-------------")
+        initial_height = np.mean(height_)
+        self.init_height = initial_height
+
+        self._visualization = rospy.get_param("~visualization")
+
+        # Surface processing
+        self.params_surface_processing = SurfaceProcessingParams()
+        self.params_surface_processing.plane_seg = rospy.get_param("~plane_seg")
+        self.params_surface_processing.n_points = rospy.get_param("~n_points")
+        self.params_surface_processing.method_id = rospy.get_param("~method_id")
+        self.params_surface_processing.poly_size = rospy.get_param("~poly_size")
+        self.params_surface_processing.min_area = rospy.get_param("~min_area")
+        self.params_surface_processing.margin = rospy.get_param("~margin")
+        self.params_surface_processing.path = rospy.get_param("~path")
+        self.params_surface_processing.stl = rospy.get_param("~stl")
+        self.surface_processing = SurfaceProcessing(initial_height, self.params_surface_processing)
+
+        # Extract surfaces from URDF file
+        # surface_detector = SurfaceDetector(
+        #     self.params_surface_processing.path + self.params_surface_processing.urdf,
+        #     self.params_surface_processing.margin,
+        #     q0=q0[:7],
+        #     initial_height=initial_height)
+
+        # Extract surfaces from STL file
+        translation = np.zeros(3)
+        translation[:2] = self._q[:2]
+        translation[-1] = initial_height
+        R_ =  pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
+        surface_detector = SurfaceDetector(
+            self.params_surface_processing.path + self.params_surface_processing.stl,
+            R_,
+            translation,
+            self.params_surface_processing.margin,
+            "environment_")
+
+        self.surfaces_extracted = surface_detector.extract_surfaces()
+
+        # Visualization tools
+        # if self._visualization:
+        self.world_visualization = WorldVisualization()
+
+        # ROS publishers and subscribers
+        self.marker_pub = rospy.Publisher("visualization_marker", Marker, queue_size=10)
+        self.marker_array_pub = rospy.Publisher("visualization_marker_array", MarkerArray, queue_size=10)
+
+        # ROS timer
+        self.timer = rospy.Timer(rospy.Duration(1.0), self.timer_callback)
+
+        rospy.sleep(1.)
+
+    def timer_callback(self, event):
+        # Publish world
+        worldMesh = self.params_surface_processing.path + self.params_surface_processing.stl
+        worldPose = self._q
+        worldPose[2] = self.init_height
+        msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self.world_frame)
+        self.marker_pub.publish(msg)
+        print("Published world")
+
+        # Publish surfaces
+        surfaces = [np.array(value).T for value in self.surfaces_extracted.values()]
+        msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
+        self.marker_array_pub.publish(msg)
+        print("Published surfaces")
