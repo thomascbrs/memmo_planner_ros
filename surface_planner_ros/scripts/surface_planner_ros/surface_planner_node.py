@@ -57,6 +57,7 @@ from walkgen_surface_processing.params import SurfaceProcessingParams
 class SurfacePlannerNode():
 
     def __init__(self):
+
         # Define frames
         self.odom_frame = rospy.get_param("~odom_frame")
         self.world_frame = rospy.get_param("~world_frame")
@@ -95,7 +96,8 @@ class SurfacePlannerNode():
         self._oMb = pinocchio.SE3(self._rot, np.zeros(3))
         self._mMb = pinocchio.SE3(self._rot, np.zeros(3))
 
-        print("\n Initialize height of the initial surface...")
+        print("\n")
+        print("Initialize height of the initial surface...\n")
         # Compute the average height of the robot
         counter_height = 0
         height_ = []
@@ -244,7 +246,8 @@ class SurfacePlannerNode():
 
         # ROS publishers and subscribers
         if self.plane_seg:
-            self.hull_marker_array_sub = rospy.Subscriber(self._plane_seg_topic, MarkerArray, self.hull_marker_array_callback, queue_size=10)
+            self.hull_marker_array_sub = rospy.Subscriber(
+                self._plane_seg_topic, MarkerArray, self.hull_marker_array_callback, queue_size=10)
         self.footstep_manager_sub = rospy.Subscriber(
             self._footstep_manager_topic, GaitStatusOnNewPhase, self.footstep_manager_callback, queue_size=10)
         self.surface_planner_pub = rospy.Publisher(self._surface_planner_topic, SetSurfaces, queue_size=10)

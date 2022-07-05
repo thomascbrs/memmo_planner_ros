@@ -51,7 +51,7 @@ class WorldVisualization():
         """
         if len(worldPose) != 7:
             raise ArithmeticError(
-                "worldPose should be size 7 (position, Orientation)")
+                "worldPose should be size 7 (Position, Orientation)")
         msg = Marker()
         color = [0.7, 0.7, 0.7, 1.]
         self._set_header(msg, id=0, frame_id=frame_id, ns="world", lifetime=0)
@@ -61,6 +61,46 @@ class WorldVisualization():
         self._set_scale(msg, 3*[1.])
         msg.type = msg.MESH_RESOURCE
         msg.mesh_resource = "file://" + worldMesh
+
+        return msg
+
+    def generate_surfaces(self, surfaces, lifetime=0, frame_id="map"):
+        """ Generate the surfaces computed by the MIP.
+        Args:
+            - surfaces (list): List of array 3xn vertices positions:
+                        array([[x0, x1, ... , xn],
+                               [y0, y1, ... , yn],
+                               [z0, z1, ... , zn]])
+            - lifetime (float): Duration in [s].
+            - frame_id (str): Frame.
+        """
+        if surfaces[0].shape[0] != 3:
+            raise ArithmeticError("Vertices should be an array of size 3xn")
+
+        msg = MarkerArray()
+        color = [1., 0., 0., 1.]
+        for id, vertices in enumerate(surfaces):
+            marker = Marker()
+            self._set_header(marker, id=id, frame_id=frame_id,
+                             ns="hull", lifetime=lifetime)
+            self._set_pose(marker, [0., 0., 0.], [0., 0., 0., 1.])
+            self._set_color(marker, color)
+            self._set_scale(marker, 3*[0.03])
+            marker.type = marker.LINE_STRIP
+            marker.action = marker.ADD
+            marker.frame_locked = True
+
+            # Add points [P0,P1,P1,P2...]
+            for k in range(vertices.shape[1] - 1):
+                marker.points.append(self._point(vertices[:, k]))
+                marker.points.append(self._point(vertices[:, k+1]))
+
+            # Add end line
+            marker.points.append(self._point(vertices[:, 0]))
+            marker.points.append(self._point(vertices[:, -1]))
+
+            # Add marker to markerArray
+            msg.markers.append(marker)
 
         return msg
 
@@ -132,46 +172,6 @@ class WorldVisualization():
             marker_y.action = marker_y.ADD
             marker_y.frame_locked = True
             msg.markers.append(marker_y)
-
-        return msg
-
-    def generate_surfaces(self, surfaces, lifetime=0, frame_id="map"):
-        """ Generate the surfaces computed by the MIP.
-        Args:
-            - surfaces (list): List of array 3xn vertices positions:
-                        array([[x0, x1, ... , xn],
-                               [y0, y1, ... , yn],
-                               [z0, z1, ... , zn]])
-            - lifetime (float): Duration in [s].
-            - frame_id (str): Frame.
-        """
-        if surfaces[0].shape[0] != 3:
-            raise ArithmeticError("Vertices should be an array of size 3xn")
-
-        msg = MarkerArray()
-        color = [1., 0., 0., 1.]
-        for id, vertices in enumerate(surfaces):
-            marker = Marker()
-            self._set_header(marker, id=id, frame_id=frame_id,
-                             ns="hull", lifetime=lifetime)
-            self._set_pose(marker, [0., 0., 0.], [0., 0., 0., 1.])
-            self._set_color(marker, color)
-            self._set_scale(marker, 3*[0.03])
-            marker.type = marker.LINE_STRIP
-            marker.action = marker.ADD
-            marker.frame_locked = True
-
-            # Add points [P0,P1,P1,P2...]
-            for k in range(vertices.shape[1] - 1):
-                marker.points.append(self._point(vertices[:, k]))
-                marker.points.append(self._point(vertices[:, k+1]))
-
-            # Add end line
-            marker.points.append(self._point(vertices[:, 0]))
-            marker.points.append(self._point(vertices[:, -1]))
-
-            # Add marker to markerArray
-            msg.markers.append(marker)
 
         return msg
 
