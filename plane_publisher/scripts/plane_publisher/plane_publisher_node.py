@@ -165,7 +165,7 @@ class PlanePublisherNode():
 
         # ROS publishers and subscribers
         self.marker_pub = rospy.Publisher("visualization_marker", Marker, queue_size=10)
-        self.marker_array_pub = rospy.Publisher("visualization_marker_array", MarkerArray, queue_size=10)
+        self.marker_array_pub = rospy.Publisher("~hull_marker_array", MarkerArray, queue_size=10)
 
         # ROS timer
         self.timer = rospy.Timer(rospy.Duration(1.0), self.timer_callback)
