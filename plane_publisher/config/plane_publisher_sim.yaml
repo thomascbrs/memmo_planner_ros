@@ -36,31 +36,6 @@ plane_publisher:
   poly_size: 10  # Maximum size of the polygon for the convex decomposition.
   min_area: 0.03  # Area under which the remaining surfaces is delated.
 
-  # Surface planner parameters independant from MPC-Walkgen
-  N_phase: 2  # Number of phases computing by SL1M (1 phase = whole walking gait, 4 foot moving)
-  com: false  # Optimize CoM trajectory in SL1M
-  fitsize_x: 10  # Number of point on x-axis (base frame) to evaluate the terrain height
-  fitsize_y: 5  # Number of point on y-axis (base frame) to evaluate the terrain height
-  fitlength: 0.3  # Square size [m] around the position of the robot to evaluate the terrain height
-  recompute_slope: true  # Recompute the slope of the terrain for each contact phase configuration
-
-  # MPC-Walkgen parameters
-  N_phase_return: walkgen/N_phase_return  # Number of phases returned by SL1M
-  typeGait: walkgen/typeGait  # "Walk" or "Trot"
-  dt: walkgen/dt
-  N_ss: walkgen/N_ss
-  N_ds: walkgen/N_ds
-  N_uss: walkgen/N_uss
-  N_uds: walkgen/N_uds
-
   # Heightmap and URDF path
   path: /usr/local/share/uoe_lab_resources
   stl: /meshes/lab_scene.stl
-
-  # Topic to exchange with footstep planner
-  footstep_manager_topic: /walkgen/footstep_manager
-  surface_planner_topic: /walkgen/surface_planner
-  plane_seg_topic: /plane_seg/hull_marker_array
-
-  # Visualization, publish marker and markerArray for RVIZ visualization
-  visualization: true

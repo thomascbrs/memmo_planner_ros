@@ -59,66 +59,67 @@ class PlanePublisherNode():
         if not self.use_drift_compensation:
             rospy.loginfo("World and odom frame are identical. Drift compensation is not used.")
 
-        # Wait for URDF. Get state of the robot to adapt the surface height.
+        # Wait for URDF. Get the state of the robot to adapt the surface height
         while not rospy.is_shutdown():
             if rospy.has_param(rospy.get_param("~robot_description")):
                 break
             else:
-                rospy.loginfo("URDF not yet available on topic " + rospy.get_param("~robot_description") +
-                              " - waiting")
+                rospy.loginfo("URDF is not available yet")
+                rospy.loginfo("Waiting for the topic \"" + rospy.get_param("~robot_description") + "\"")
                 rospy.sleep(1.)
         urdf_xml = rospy.get_param(rospy.get_param("~robot_description"))
         self.feet_3d_names = rospy.get_param("~3d_feet")
         robot_state_topic = rospy.get_param("~robot_state_topic")
         locked_joint_names = rospy.get_param("~joints_to_be_locked")
-        self._model = pinocchio.buildModelFromXML(urdf_xml, pinocchio.JointModelFreeFlyer())
+        self.model = pinocchio.buildModelFromXML(urdf_xml, pinocchio.JointModelFreeFlyer())
         locked_joint_ids = pinocchio.StdVec_Index()
         for name in locked_joint_names:
-            if self._model.existJointName(name):
-                locked_joint_ids.append(self._model.getJointId(name))
+            if self.model.existJointName(name):
+                locked_joint_ids.append(self.model.getJointId(name))
             else:
                 rospy.logwarn("The " + name + " cannot be locked as it doesn't belong to the full model")
         if len(locked_joint_ids) > 0:
-            self._model = pinocchio.buildReducedModel(self._model, locked_joint_ids, pinocchio.neutral(self._model))
-        self._data = self._model.createData()
-        self._ws_sub = WholeBodyStateSubscriber(self._model, robot_state_topic, frame_id=self.odom_frame)
-        self._tf_listener = tf.TransformListener()
-        self._rot = pinocchio.Quaternion(np.array([0., 0., 0., 1.]))
-        self._mMo = pinocchio.SE3(self._rot, np.zeros(3))
-        self._oMb = pinocchio.SE3(self._rot, np.zeros(3))
-        self._mMb = pinocchio.SE3(self._rot, np.zeros(3))
+            self.model = pinocchio.buildReducedModel(self.model, locked_joint_ids, pinocchio.neutral(self.model))
+        self.data = self.model.createData()
+        self.whole_body_state_sub = WholeBodyStateSubscriber(self.model, robot_state_topic, frame_id=self.odom_frame)
+        self.tf_listener = tf.TransformListener()
+        self.rot = pinocchio.Quaternion(np.array([0., 0., 0., 1.]))
+        self.mMo = pinocchio.SE3(self.rot, np.zeros(3))
+        self.oMb = pinocchio.SE3(self.rot, np.zeros(3))
+        self.mMb = pinocchio.SE3(self.rot, np.zeros(3))
 
         # Compute the average height of the robot
-        print("\n Initialize height of the initial surface... \n")
+        print("----------------------------------------------")
+        print("Initialize the height of the initial surface...\n")
         counter_height = 0
         height_ = []
         offset_height = -0.85
         q0 = None
         while not rospy.is_shutdown() and counter_height < 20:
-            if self._ws_sub.has_new_whole_body_state_message():
-                t0, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
+            if self.whole_body_state_sub.has_new_whole_body_state_message():
+                t0, q, v, tau, f = self.whole_body_state_sub.get_current_whole_body_state()
 
                 # Update the drift between the odom and world frames
                 if self.use_drift_compensation:
                     try:
-                        self._mMo.translation[:], (self._rot.x, self._rot.y, self._rot.z,
-                                                   self._rot.w) = self._tf_listener.lookupTransform(
+                        self.mMo.translation[:], (self.rot.x, self.rot.y, self.rot.z,
+                                                   self.rot.w) = self.tf_listener.lookupTransform(
                                                        self.world_frame, self.odom_frame, rospy.Time())
-                        self._mMo.rotation = self._rot.toRotationMatrix()
+                        self.mMo.rotation = self.rot.toRotationMatrix()
                     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                         pass
                 # Map the current state from odom to world frame
-                self._oMb.translation[:] = q[:3]
-                self._rot.x, self._rot.y, self._rot.z, self._rot.w = q[3:7]
-                self._oMb.rotation = self._rot.toRotationMatrix()
-                q[:7] = pinocchio.SE3ToXYZQUAT(self._mMo.act(self._oMb))
+                self.oMb.translation[:] = q[:3]
+                self.rot.x, self.rot.y, self.rot.z, self.rot.w = q[3:7]
+                self.oMb.rotation = self.rot.toRotationMatrix()
+                q[:7] = pinocchio.SE3ToXYZQUAT(self.mMo.act(self.oMb))
 
-                pinocchio.forwardKinematics(self._model, self._data, q)
-                pinocchio.updateFramePlacements(self._model, self._data)
+                pinocchio.forwardKinematics(self.model, self.data, q)
+                pinocchio.updateFramePlacements(self.model, self.data)
                 h = 0
                 for name in self.feet_3d_names:
-                    frameId = self._model.getFrameId(name)
-                    h += self._data.oMf[frameId].translation[2]
+                    frameId = self.model.getFrameId(name)
+                    h += self.data.oMf[frameId].translation[2]
                 height_.append(h/4)
                 counter_height += 1
                 q0 = q
@@ -127,14 +128,12 @@ class PlanePublisherNode():
                 rospy.loginfo("Waiting for a new whole body state message.")
                 rospy.sleep(1.)
 
-        print("Initial configuration in world frame : ", q0[:7])
+        print("Initial configuration in the world frame : ", q0[:7])
         self._q = q0[:7]
         print("Average height for initial surface : ", np.mean(height_))
-        print("-------------")
+        print("----------------------------------------------")
         initial_height = np.mean(height_)
         self.init_height = initial_height
-
-        self._visualization = rospy.get_param("~visualization")
 
         # Surface processing
         self.params_surface_processing = SurfaceProcessingParams()
@@ -170,7 +169,6 @@ class PlanePublisherNode():
         self.surfaces_extracted = surface_detector.extract_surfaces()
 
         # Visualization tools
-        # if self._visualization:
         self.world_visualization = WorldVisualization()
 
         # ROS publishers and subscribers
