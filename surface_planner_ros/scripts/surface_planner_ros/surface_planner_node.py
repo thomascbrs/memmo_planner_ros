@@ -68,28 +68,28 @@ class SurfacePlannerNode():
                 sleep(1)
 
         # Define frames
-        self._odomFrame = rospy.get_param("~odom_frame")
-        self._worldFrame = rospy.get_param("~world_frame")
-        if self._worldFrame == str():
-            self._worldFrame = self._odomFrame
-        self._useDriftCompensation = (self._odomFrame != self._worldFrame)
-        if not self._useDriftCompensation:
+        self.odom_frame = rospy.get_param("~odom_frame")
+        self.world_frame = rospy.get_param("~world_frame")
+        if self.world_frame == str():
+            self.world_frame = self.odom_frame
+        self.use_drift_compensation = (self.odom_frame != self.world_frame)
+        if not self.use_drift_compensation:
             rospy.loginfo("Map and odom frame are identical: Not using drift compensation.")
-        urdfXml = rospy.get_param(rospy.get_param("~robot_description"))
-        self._feet3DNames = rospy.get_param("~3d_feet")
-        robotStateTopic = rospy.get_param("~robot_state_topic")
-        lockedJointNames = rospy.get_param("~joints_to_be_locked")
-        self._model = pinocchio.buildModelFromXML(urdfXml, pinocchio.JointModelFreeFlyer())
-        lockedJointIds = pinocchio.StdVec_Index()
-        for name in lockedJointNames:
+        urdf_xml = rospy.get_param(rospy.get_param("~robot_description"))
+        self.feet_3d_names = rospy.get_param("~3d_feet")
+        robot_state_topic = rospy.get_param("~robot_state_topic")
+        locked_joint_names = rospy.get_param("~joints_to_be_locked")
+        self._model = pinocchio.buildModelFromXML(urdf_xml, pinocchio.JointModelFreeFlyer())
+        locked_joint_ids = pinocchio.StdVec_Index()
+        for name in locked_joint_names:
             if self._model.existJointName(name):
-                lockedJointIds.append(self._model.getJointId(name))
+                locked_joint_ids.append(self._model.getJointId(name))
             else:
                 rospy.logwarn("The " + name + " cannot be locked as it doesn't belong to the full model")
-        if len(lockedJointIds) > 0:
-            self._model = pinocchio.buildReducedModel(self._model, lockedJointIds, pinocchio.neutral(self._model))
+        if len(locked_joint_ids) > 0:
+            self._model = pinocchio.buildReducedModel(self._model, locked_joint_ids, pinocchio.neutral(self._model))
         self._data = self._model.createData()
-        self._ws_sub = WholeBodyStateSubscriber(self._model, robotStateTopic, frame_id=self._odomFrame)
+        self._ws_sub = WholeBodyStateSubscriber(self._model, robot_state_topic, frame_id=self.odom_frame)
         self._tf_listener = tf.TransformListener()
         self._rot = pinocchio.Quaternion(np.array([0., 0., 0., 1.]))
         self._mMo = pinocchio.SE3(self._rot, np.zeros(3))
@@ -107,11 +107,11 @@ class SurfacePlannerNode():
                 t0, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
 
                 # Update the drift between the odom and world frames
-                if self._useDriftCompensation:
+                if self.use_drift_compensation:
                     try:
                         self._mMo.translation[:], (self._rot.x, self._rot.y, self._rot.z,
                                                    self._rot.w) = self._tf_listener.lookupTransform(
-                                                       self._worldFrame, self._odomFrame, rospy.Time())
+                                                       self.world_frame, self.odom_frame, rospy.Time())
                         self._mMo.rotation = self._rot.toRotationMatrix()
                     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                         pass
@@ -124,7 +124,7 @@ class SurfacePlannerNode():
                 pinocchio.forwardKinematics(self._model, self._data, q)
                 pinocchio.updateFramePlacements(self._model, self._data)
                 h = 0
-                for name in self._feet3DNames:
+                for name in self.feet_3d_names:
                     frameId = self._model.getFrameId(name)
                     h += self._data.oMf[frameId].translation[2]
                 height_.append(h/4)
@@ -159,17 +159,10 @@ class SurfacePlannerNode():
         self.params_surface_processing.path = rospy.get_param("~path")
         self.params_surface_processing.stl = rospy.get_param("~stl")
         self.plane_seg = self.params_surface_processing.plane_seg  # Use data from plane_seg.
-
-        # Surface processing
         self.surface_processing = SurfaceProcessing(initial_height= initial_height, params = self.params_surface_processing)
-        self._firstSetSurfaces = False
+        self.first_set_surfaces = False
 
         ## Surface planner
-        # Surface Planner parameters independant from MPC-Walkgen-Caracal
-        self.params_surface_planner = SurfacePlannerParams()
-        self.params_surface_planner.N_phase = rospy.get_param("~N_phase")
-        self.params_surface_planner.com = rospy.get_param("~com")
-
         # Waiting for MPC-Walkgen parameters
         while not rospy.is_shutdown():
             if rospy.has_param(rospy.get_param("~N_uds")):
@@ -178,6 +171,10 @@ class SurfacePlannerNode():
                 rospy.loginfo("Waiting for MPC-Walkgen")
                 sleep(1)
 
+        # Surface Planner parameters independant from MPC-Walkgen-Caracal
+        self.params_surface_planner = SurfacePlannerParams()
+        self.params_surface_planner.N_phase = rospy.get_param("~N_phase")
+        self.params_surface_planner.com = rospy.get_param("~com")
         self.params_surface_planner.typeGait = rospy.get_param(rospy.get_param("~typeGait"))
         self.params_surface_planner.N_ss = rospy.get_param(rospy.get_param("~N_ss"))
         self.params_surface_planner.N_ds = rospy.get_param(rospy.get_param("~N_ds"))
@@ -187,17 +184,14 @@ class SurfacePlannerNode():
         self.params_surface_planner.N_phase_return = rospy.get_param(rospy.get_param("~N_phase_return"))
         if self.params_surface_planner.N_phase_return > self.params_surface_planner.N_phase:
             warnings.warn("More phases in the MPC horizon than planned bby the MIP. The last surface selected will be used multiple times.")
-
         self.params_surface_planner.fitsize_x = rospy.get_param("~fitsize_x")
         self.params_surface_planner.fitsize_y = rospy.get_param("~fitsize_y")
         self.params_surface_planner.fitlength = rospy.get_param("~fitlength")
         self.params_surface_planner.recompute_slope = rospy.get_param("~recompute_slope")
-
-        # Surface planner
         self.surface_planner = SurfacePlanner(self.params_surface_planner)
 
         if not self.plane_seg:
-            self._firstSetSurfaces = True # Always available using plane_seg
+            self.first_set_surfaces = True # Always available using plane_seg
             # Extract surfaces from URDF file.
             # surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
             translation = np.zeros(3)
@@ -228,41 +222,36 @@ class SurfacePlannerNode():
 
                 sleep(1.)  # Not working otherwise
 
-                msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self._worldFrame)
+                msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self.world_frame)
                 self.marker_pub.publish(msg)
 
                 surfaces = [np.array(value).T for value in all_surfaces.values()]
-                msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self._worldFrame)
+                msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
                 self.marker_array_pub.publish(msg)
 
         # Surface filtered
         self.surfaces_processed = None
-        self._newSurfaces = False
-
-        # cmd_vel subscriber
-        self.cmd_vel = np.array([0., 0., 0., 0., 0., 0.])
-        self.cmd_vel_sub = rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_callback, queue_size=1)
-
+        self.new_surfaces = False
         self.gait = None
-        self.fsteps = np.zeros((3, 4))
+        self.footsteps = np.zeros((3, 4))
         self.q_filter = np.zeros(7)
 
-        # Planner onoff switch
-        self.onoff = False
+        # Interfaces for message conversion
+        self.footstep_manager_interface = StepManagerInterface()
+        self.surface_planner_interface = SurfacePlannerInterface()
+
+        self.cmd_vel = np.array([0., 0., 0., 0., 0., 0.])
+
+
+        self.planner_switch = False  # Planner onoff switch
 
         # ROS publishers and subscribers
         if self.plane_seg:
-            self.hull_marker_array_sub = rospy.Subscriber(
-                self._plane_seg_topic, MarkerArray, self.hull_marker_array_callback, queue_size=10)
-        self.fsteps_manager_sub = rospy.Subscriber(
+            self.hull_marker_array_sub = rospy.Subscriber(self._plane_seg_topic, MarkerArray, self.hull_marker_array_callback, queue_size=10)
+        self.footstep_manager_sub = rospy.Subscriber(
             self._footstep_manager_topic, GaitStatusOnNewPhase, self.footstep_manager_callback, queue_size=10)
-
-        self.surface_planner_interface = SurfacePlannerInterface()
-        self.surface_planner_pub = rospy.Publisher(
-            self._surface_planner_topic, SetSurfaces, queue_size=10)
-
-        # Stepmanager interface for message conversion.
-        self._step_manager_interface = StepManagerInterface()
+        self.surface_planner_pub = rospy.Publisher(self._surface_planner_topic, SetSurfaces, queue_size=10)
+        self.cmd_vel_sub = rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_callback, queue_size=1)
 
         # ROS timer
         self.timer = rospy.Timer(rospy.Duration(0.001), self.timer_callback)
@@ -277,32 +266,32 @@ class SurfacePlannerNode():
         """
         print("\n -----Marker array received-----   \n")
         self.surfaces_processed = self.surface_processing.run(self._q[:3], msg)
-        self._newSurfaces = True
-        self._firstSetSurfaces = True
+        self.new_surfaces = True
+        self.first_set_surfaces = True
         surfaces = [np.array(value).T for key,value in self.surfaces_processed.items()]
-        msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self._worldFrame)
+        msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
         self.marker_array_pub.publish(msg)
 
     def footstep_manager_callback(self, msg):
         """ Extract data from foostep manager.
         """
-        self.gait, self.fsteps, q_filter = self._step_manager_interface.writeFromMessage(msg)
+        self.gait, self.footsteps, q_filter = self.step_manager_interface.writeFromMessage(msg)
         self.q_filter[:3] = q_filter[:3]
         self.q_filter[3:7] = pinocchio.Quaternion(pinocchio.rpy.rpyToMatrix(q_filter[3:])).coeffs()
 
         # Turn on planner
-        self.onoff = True
+        self.planner_switch = True
 
     def timer_callback(self, event):
-        if self.onoff and self._firstSetSurfaces:
+        if self.planner_switch and self.first_set_surfaces:
             t_init, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
 
             # Update the drift between the odom and world frames
-            if self._useDriftCompensation:
+            if self.use_drift_compensation:
                 try:
                     self._mMo.translation[:], (self._rot.x, self._rot.y, self._rot.z,
                                                 self._rot.w) = self._tf_listener.lookupTransform(
-                                                    self._worldFrame, self._odomFrame, rospy.Time())
+                                                    self.world_frame, self.odom_frame, rospy.Time())
                     self._mMo.rotation = self._rot.toRotationMatrix()
                 except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                     raise ArithmeticError("Problem with tf transform")
@@ -317,10 +306,10 @@ class SurfacePlannerNode():
             t0 = clock()
 
             # Start an optimisation
-            if self._newSurfaces:
+            if self.new_surfaces:
                 self.surface_planner.set_surfaces(self.surfaces_processed)  # Update surfaces
-                self._newSurfaces = False
-            selected_surfaces = self.surface_planner.run(self.q_filter, self.gait, self.cmd_vel, self.fsteps)
+                self.new_surfaces = False
+            selected_surfaces = self.surface_planner.run(self.q_filter, self.gait, self.cmd_vel, self.footsteps)
 
             if self.surface_planner.pb_data.success:
                 t1 = clock()
@@ -328,16 +317,16 @@ class SurfacePlannerNode():
                 if self._visualization:
                     t0 = clock()
                     # Publish world config
-                    msg = self.world_visualization.generate_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                    msg = self.world_visualization.generate_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self.world_frame)
                     self.marker_array_pub.publish(msg)
 
                     # Publish world footsteps
-                    msg = self.world_visualization.generate_footsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self._worldFrame)
+                    msg = self.world_visualization.generate_footsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self.world_frame)
                     self.marker_array_pub.publish(msg)
 
                     # Publish world surfaces
                     surfaces = [np.array(value).T for key,value in self.surface_planner.all_surfaces.items()]
-                    msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self._worldFrame)
+                    msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
                     self.marker_array_pub.publish(msg)
 
                     t1 = clock()
@@ -352,4 +341,4 @@ class SurfacePlannerNode():
                 print("Publisher took [ms] : ", 1000 * (t1 - t0))
 
             # Turn off planner
-            self.onoff = False
+            self.planner_switch = False
