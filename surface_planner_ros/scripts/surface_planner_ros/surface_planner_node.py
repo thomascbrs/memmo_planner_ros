@@ -57,16 +57,6 @@ from walkgen_surface_processing.params import SurfaceProcessingParams
 class SurfacePlannerNode():
 
     def __init__(self):
-        # ------ Get state of the robot to adapt the surface height.
-        # Wait for URDF
-        while not rospy.is_shutdown():
-            if rospy.has_param(rospy.get_param("~robot_description")):
-                break
-            else:
-                rospy.loginfo("URDF not yet available on topic " + rospy.get_param("~robot_description") +
-                              " - waiting")
-                sleep(1)
-
         # Define frames
         self.odom_frame = rospy.get_param("~odom_frame")
         self.world_frame = rospy.get_param("~world_frame")
@@ -74,7 +64,16 @@ class SurfacePlannerNode():
             self.world_frame = self.odom_frame
         self.use_drift_compensation = (self.odom_frame != self.world_frame)
         if not self.use_drift_compensation:
-            rospy.loginfo("Map and odom frame are identical: Not using drift compensation.")
+            rospy.loginfo("World and odom frame are identical. Drift compensation is not used.")
+
+        # Wait for URDF. Get state of the robot to adapt the surface height.
+        while not rospy.is_shutdown():
+            if rospy.has_param(rospy.get_param("~robot_description")):
+                break
+            else:
+                rospy.loginfo("URDF not yet available on topic " + rospy.get_param("~robot_description") +
+                              " - waiting")
+                sleep(1)
         urdf_xml = rospy.get_param(rospy.get_param("~robot_description"))
         self.feet_3d_names = rospy.get_param("~3d_feet")
         robot_state_topic = rospy.get_param("~robot_state_topic")
@@ -149,7 +148,6 @@ class SurfacePlannerNode():
         ## Surface processing
         # Post-processing & environment parameters
         self.params_surface_processing = SurfaceProcessingParams()
-
         self.params_surface_processing.plane_seg = rospy.get_param("~plane_seg")
         self.params_surface_processing.n_points = rospy.get_param("~n_points")
         self.params_surface_processing.method_id = rospy.get_param("~method_id")
@@ -236,14 +234,13 @@ class SurfacePlannerNode():
         self.footsteps = np.zeros((3, 4))
         self.q_filter = np.zeros(7)
 
+        # Others
+        self.cmd_vel = np.array([0., 0., 0., 0., 0., 0.])  # Command velocity
+        self.planner_switch = False  # Planner onoff switch
+
         # Interfaces for message conversion
         self.footstep_manager_interface = StepManagerInterface()
         self.surface_planner_interface = SurfacePlannerInterface()
-
-        self.cmd_vel = np.array([0., 0., 0., 0., 0., 0.])
-
-
-        self.planner_switch = False  # Planner onoff switch
 
         # ROS publishers and subscribers
         if self.plane_seg:
@@ -305,7 +302,7 @@ class SurfacePlannerNode():
 
             t0 = clock()
 
-            # Start an optimisation
+            # Start optimization
             if self.new_surfaces:
                 self.surface_planner.set_surfaces(self.surfaces_processed)  # Update surfaces
                 self.new_surfaces = False
@@ -313,7 +310,7 @@ class SurfacePlannerNode():
 
             if self.surface_planner.pb_data.success:
                 t1 = clock()
-                print("SL1M optimisation took [ms] : ", 1000 * (t1 - t0))
+                print("SL1M optimization took [ms] : ", 1000 * (t1 - t0))
                 if self._visualization:
                     t0 = clock()
                     # Publish world config
