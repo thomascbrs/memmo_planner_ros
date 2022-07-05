@@ -40,7 +40,7 @@ import tf
 from visualization_msgs.msg import Marker, MarkerArray
 from whole_body_state_subscriber_py import WholeBodyStateSubscriber
 
-from plane_publisher.world_visualization import WorldVisualization
+from plane_publisher.plane_visualization import generate_world, generate_surfaces
 from walkgen_surface_processing.surface_detector import SurfaceDetector
 from walkgen_surface_processing.surface_processing import SurfaceProcessing
 from walkgen_surface_processing.params import SurfaceProcessingParams
@@ -168,9 +168,6 @@ class PlanePublisherNode():
 
         self.surfaces_extracted = surface_detector.extract_surfaces()
 
-        # Visualization tools
-        self.world_visualization = WorldVisualization()
-
         # ROS publishers and subscribers
         self.marker_pub = rospy.Publisher("visualization_marker", Marker, queue_size=10)
         self.marker_array_pub = rospy.Publisher("visualization_marker_array", MarkerArray, queue_size=10)
@@ -185,12 +182,12 @@ class PlanePublisherNode():
         worldMesh = self.params_surface_processing.path + self.params_surface_processing.stl
         worldPose = self._q
         worldPose[2] = self.init_height
-        msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self.world_frame)
+        msg = generate_world(worldMesh, worldPose, frame_id=self.world_frame)
         self.marker_pub.publish(msg)
         print("Published world")
 
         # Publish surfaces
         surfaces = [np.array(value).T for value in self.surfaces_extracted.values()]
-        msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
+        msg = generate_surfaces(surfaces, frame_id=self.world_frame)
         self.marker_array_pub.publish(msg)
         print("Published surfaces")
