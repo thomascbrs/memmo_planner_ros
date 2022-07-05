@@ -1,5 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-  <rosparam command="load" file="$(find plane_publisher)/config/plane_publisher.yaml" />
-  <node pkg="plane_publisher" type="main.py" name="plane_publisher" output="screen"/>
-</launch>

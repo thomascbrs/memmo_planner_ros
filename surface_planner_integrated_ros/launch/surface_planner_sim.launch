@@ -1,5 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-  <rosparam command="load" file="$(find surface_planner_integrated_ros)/config/surface_planner_sim.yaml" />
-  <node pkg="surface_planner_integrated_ros" type="main.py" name="surface_planner" output="screen"/>
-</launch>
