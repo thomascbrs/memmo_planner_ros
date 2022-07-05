@@ -28,12 +28,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import numpy as np
+import pinocchio
 try:
     from time import perf_counter as clock
 except ImportError:
     from time import time as clock
-from time import sleep
-import pinocchio
 import warnings
 
 from geometry_msgs.msg import Twist
@@ -46,7 +45,6 @@ from footstep_msgs.msg import GaitStatusOnNewPhase, SetSurfaces
 from surface_planner_ros.step_manager_interface import StepManagerInterface
 from surface_planner_ros.surface_planner_interface import SurfacePlannerInterface
 from surface_planner_ros.world_visualization import WorldVisualization
-
 from walkgen_surface_planner import SurfacePlanner
 from walkgen_surface_planner.params import SurfacePlannerParams
 from walkgen_surface_processing.surface_detector import SurfaceDetector
@@ -74,7 +72,7 @@ class SurfacePlannerNode():
             else:
                 rospy.loginfo("URDF not yet available on topic " + rospy.get_param("~robot_description") +
                               " - waiting")
-                sleep(1)
+                rospy.sleep(1.)
         urdf_xml = rospy.get_param(rospy.get_param("~robot_description"))
         self.feet_3d_names = rospy.get_param("~3d_feet")
         robot_state_topic = rospy.get_param("~robot_state_topic")
@@ -131,10 +129,10 @@ class SurfacePlannerNode():
                 height_.append(h/4)
                 counter_height += 1
                 q0 = q
-                sleep(0.1)
+                rospy.sleep(0.1)
             elif counter_height == 0:
                 rospy.loginfo("Waiting for a new whole body state message.")
-                sleep(1)
+                rospy.sleep(1)
 
         print("Initial configuration in world frame : ", q0[:7])
         self._q = q0[:7]
@@ -169,7 +167,7 @@ class SurfacePlannerNode():
                 break
             else:
                 rospy.loginfo("Waiting for MPC-Walkgen")
-                sleep(1)
+                rospy.sleep(1)
 
         # Surface Planner parameters independant from MPC-Walkgen-Caracal
         self.params_surface_planner = SurfacePlannerParams()
@@ -209,7 +207,7 @@ class SurfacePlannerNode():
             if not self.plane_seg:  # Publish URDF environment
                 print("Publishing world...")
                 # self.world_visualization = WalkgenVisualizationPublisher()
-                sleep(1.)  # Not working otherwise
+                rospy.sleep(1.)  # Not working otherwise
 
                 worldMesh = self.params_surface_processing.path + self.params_surface_processing.stl
                 worldPose = self._q
@@ -220,7 +218,7 @@ class SurfacePlannerNode():
                 self.marker_array_pub = rospy.Publisher(
                     "surface_planner/visualization_marker_array", MarkerArray, queue_size=10)
 
-                sleep(1.)  # Not working otherwise
+                rospy.sleep(1.)  # Not working otherwise
 
                 msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self.world_frame)
                 self.marker_pub.publish(msg)
