@@ -57,31 +57,28 @@ from walkgen_surface_processing.params import SurfaceProcessingParams
 class SurfacePlannerNode():
 
     def __init__(self):
-        # Read configuration parameters
-        nodeName = "surface_planner"
-
         # ------ Get state of the robot to adapt the surface height.
         # Wait for URDF
         while not rospy.is_shutdown():
-            if rospy.has_param(rospy.get_param(nodeName + "/robot_description")):
+            if rospy.has_param(rospy.get_param("~robot_description")):
                 break
             else:
-                rospy.loginfo("URDF not yet available on topic " + rospy.get_param(nodeName + "/robot_description") +
+                rospy.loginfo("URDF not yet available on topic " + rospy.get_param("~robot_description") +
                               " - waiting")
                 sleep(1)
 
         # Define frames
-        self._odomFrame = rospy.get_param(nodeName + "/odom_frame")
-        self._worldFrame = rospy.get_param(nodeName + "/world_frame")
+        self._odomFrame = rospy.get_param("~odom_frame")
+        self._worldFrame = rospy.get_param("~world_frame")
         if self._worldFrame == str():
             self._worldFrame = self._odomFrame
         self._useDriftCompensation = (self._odomFrame != self._worldFrame)
         if not self._useDriftCompensation:
             rospy.loginfo("Map and odom frame are identical: Not using drift compensation.")
-        urdfXml = rospy.get_param(rospy.get_param(nodeName + "/robot_description"))
-        self._feet3DNames = rospy.get_param(nodeName + "/3d_feet")
-        robotStateTopic = rospy.get_param(nodeName + "/robot_state_topic")
-        lockedJointNames = rospy.get_param(nodeName + "/joints_to_be_locked")
+        urdfXml = rospy.get_param(rospy.get_param("~robot_description"))
+        self._feet3DNames = rospy.get_param("~3d_feet")
+        robotStateTopic = rospy.get_param("~robot_state_topic")
+        lockedJointNames = rospy.get_param("~joints_to_be_locked")
         self._model = pinocchio.buildModelFromXML(urdfXml, pinocchio.JointModelFreeFlyer())
         lockedJointIds = pinocchio.StdVec_Index()
         for name in lockedJointNames:
@@ -144,51 +141,51 @@ class SurfacePlannerNode():
         print("-------------")
         initial_height = np.mean(height_)
 
-        self._visualization = rospy.get_param(nodeName + "/visualization")
-        self._footstep_manager_topic = rospy.get_param(nodeName + "/footstep_manager_topic")
-        self._surface_planner_topic = rospy.get_param(nodeName + "/surface_planner_topic")
-        self._plane_seg_topic = rospy.get_param(nodeName + "/plane_seg_topic")
+        self._visualization = rospy.get_param("~visualization")
+        self._footstep_manager_topic = rospy.get_param("~footstep_manager_topic")
+        self._surface_planner_topic = rospy.get_param("~surface_planner_topic")
+        self._plane_seg_topic = rospy.get_param("~plane_seg_topic")
 
         # Post-processing & environment parameters
         self._params_processing = SurfaceProcessingParams()
 
-        self._params_processing.plane_seg = rospy.get_param(nodeName + "/plane_seg")
-        self._params_processing.n_points = rospy.get_param(nodeName + "/n_points")
-        self._params_processing.method_id = rospy.get_param(nodeName + "/method_id")
-        self._params_processing.poly_size = rospy.get_param(nodeName + "/poly_size")
-        self._params_processing.min_area = rospy.get_param(nodeName + "/min_area")
-        self._params_processing.margin = rospy.get_param(nodeName + "/margin")
-        self._params_processing.path = rospy.get_param(nodeName + "/path")
-        self._params_processing.stl = rospy.get_param(nodeName + "/stl")
+        self._params_processing.plane_seg = rospy.get_param("~plane_seg")
+        self._params_processing.n_points = rospy.get_param("~n_points")
+        self._params_processing.method_id = rospy.get_param("~method_id")
+        self._params_processing.poly_size = rospy.get_param("~poly_size")
+        self._params_processing.min_area = rospy.get_param("~min_area")
+        self._params_processing.margin = rospy.get_param("~margin")
+        self._params_processing.path = rospy.get_param("~path")
+        self._params_processing.stl = rospy.get_param("~stl")
         self.plane_seg = self._params_processing.plane_seg  # Use data from plane_seg.
 
         # Surface Planner parameters independant from MPC-Walkgen-Caracal
         self._params_planner = SurfacePlannerParams()
-        self._params_planner.N_phase = rospy.get_param(nodeName + "/N_phase")
-        self._params_planner.com = rospy.get_param(nodeName + "/com")
+        self._params_planner.N_phase = rospy.get_param("~N_phase")
+        self._params_planner.com = rospy.get_param("~com")
 
         # Waiting for MPC-Walkgen parameters
         while not rospy.is_shutdown():
-            if rospy.has_param(rospy.get_param(nodeName + "/N_uds")):
+            if rospy.has_param(rospy.get_param("~N_uds")):
                 break
             else:
                 rospy.loginfo("Waiting for MPC-Walkgen")
                 sleep(1)
 
-        self._params_planner.typeGait = rospy.get_param(rospy.get_param(nodeName + "/typeGait"))
-        self._params_planner.N_ss = rospy.get_param(rospy.get_param(nodeName + "/N_ss"))
-        self._params_planner.N_ds = rospy.get_param(rospy.get_param(nodeName + "/N_ds"))
-        self._params_planner.N_uss = rospy.get_param(rospy.get_param(nodeName + "/N_uss"))
-        self._params_planner.N_uds = rospy.get_param(rospy.get_param(nodeName + "/N_uds"))
-        self._params_planner.dt = rospy.get_param(rospy.get_param(nodeName + "/dt"))
-        self._params_planner.N_phase_return = rospy.get_param(rospy.get_param(nodeName + "/N_phase_return"))
+        self._params_planner.typeGait = rospy.get_param(rospy.get_param("~typeGait"))
+        self._params_planner.N_ss = rospy.get_param(rospy.get_param("~N_ss"))
+        self._params_planner.N_ds = rospy.get_param(rospy.get_param("~N_ds"))
+        self._params_planner.N_uss = rospy.get_param(rospy.get_param("~N_uss"))
+        self._params_planner.N_uds = rospy.get_param(rospy.get_param("~N_uds"))
+        self._params_planner.dt = rospy.get_param(rospy.get_param("~dt"))
+        self._params_planner.N_phase_return = rospy.get_param(rospy.get_param("~N_phase_return"))
         if self._params_planner.N_phase_return > self._params_planner.N_phase:
             warnings.warn("More phases in the MPC horizon than planned bby the MIP. The last surface selected will be used multiple times.")
 
-        self._params_planner.fitsize_x = rospy.get_param(nodeName + "/fitsize_x")
-        self._params_planner.fitsize_y = rospy.get_param(nodeName + "/fitsize_y")
-        self._params_planner.fitlength = rospy.get_param(nodeName + "/fitlength")
-        self._params_planner.recompute_slope = rospy.get_param(nodeName + "/recompute_slope")
+        self._params_planner.fitsize_x = rospy.get_param("~fitsize_x")
+        self._params_planner.fitsize_y = rospy.get_param("~fitsize_y")
+        self._params_planner.fitlength = rospy.get_param("~fitlength")
+        self._params_planner.recompute_slope = rospy.get_param("~recompute_slope")
 
         # Surface planner
         self.surface_planner = SurfacePlanner(self._params_planner)
