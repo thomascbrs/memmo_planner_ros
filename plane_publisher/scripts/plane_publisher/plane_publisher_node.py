@@ -90,7 +90,8 @@ class PlanePublisherNode():
 
         # Compute the average height of the robot
         print("----------------------------------------------")
-        print("Initialize the height of the initial surface...\n")
+        print("Preparing to publish the world\n")
+        print("Initializing the height of the initial surface")
         counter_height = 0
         height_ = []
         offset_height = -0.85
@@ -130,41 +131,35 @@ class PlanePublisherNode():
 
         print("Initial configuration in the world frame : ", q0[:7])
         self._q = q0[:7]
-        print("Average height for initial surface : ", np.mean(height_))
+        print("Average height for initial surface : ", round(np.mean(height_), 4))
         print("----------------------------------------------")
         initial_height = np.mean(height_)
         self.init_height = initial_height
 
-        # Surface processing
-        self.params_surface_processing = SurfaceProcessingParams()
-        self.params_surface_processing.plane_seg = rospy.get_param("~plane_seg")
-        self.params_surface_processing.n_points = rospy.get_param("~n_points")
-        self.params_surface_processing.method_id = rospy.get_param("~method_id")
-        self.params_surface_processing.poly_size = rospy.get_param("~poly_size")
-        self.params_surface_processing.min_area = rospy.get_param("~min_area")
-        self.params_surface_processing.margin = rospy.get_param("~margin")
-        self.params_surface_processing.path = rospy.get_param("~path")
-        self.params_surface_processing.stl = rospy.get_param("~stl")
-        self.surface_processing = SurfaceProcessing(initial_height, self.params_surface_processing)
-
-        # Extract surfaces from URDF file
-        # surface_detector = SurfaceDetector(
-        #     self.params_surface_processing.path + self.params_surface_processing.urdf,
-        #     self.params_surface_processing.margin,
-        #     q0=q0[:7],
-        #     initial_height=initial_height)
-
-        # Extract surfaces from STL file
-        translation = np.zeros(3)
-        translation[:2] = self._q[:2]
-        translation[-1] = initial_height
-        R_ =  pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
-        surface_detector = SurfaceDetector(
-            self.params_surface_processing.path + self.params_surface_processing.stl,
-            R_,
-            translation,
-            self.params_surface_processing.margin,
-            "environment_")
+        # Extracting surfaces
+        self.margin = rospy.get_param("~margin")
+        self.path = rospy.get_param("~path")
+        self.stl = rospy.get_param("~stl")
+        self.use_urdf_surfaces = rospy.get_param("~use_urdf_surfaces")
+        if self.use_urdf_surfaces:
+            # Extract surfaces from URDF file
+            surface_detector = SurfaceDetector(
+                self.path + self.urdf,
+                self.margin,
+                q0=q0[:7],
+                initial_height=initial_height)
+        else:
+            # Extract surfaces from STL file
+            translation = np.zeros(3)
+            translation[:2] = self._q[:2]
+            translation[-1] = initial_height
+            R_ =  pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
+            surface_detector = SurfaceDetector(
+                self.path + self.stl,
+                R_,
+                translation,
+                self.margin,
+                "environment_")
 
         self.surfaces_extracted = surface_detector.extract_surfaces()
 
@@ -179,7 +174,7 @@ class PlanePublisherNode():
 
     def timer_callback(self, event):
         # Publish world
-        worldMesh = self.params_surface_processing.path + self.params_surface_processing.stl
+        worldMesh = self.path + self.stl
         worldPose = self._q
         worldPose[2] = self.init_height
         msg = generate_world(worldMesh, worldPose, frame_id=self.world_frame)

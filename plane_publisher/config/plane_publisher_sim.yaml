@@ -37,5 +37,6 @@ plane_publisher:
   min_area: 0.03  # Area under which the remaining surfaces is delated.
 
   # Heightmap and URDF path
+  use_urdf_surfaces: false
   path: /usr/local/share/uoe_lab_resources
   stl: /meshes/lab_scene.stl
