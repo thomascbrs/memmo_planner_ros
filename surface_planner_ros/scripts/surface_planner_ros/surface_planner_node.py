@@ -42,6 +42,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from whole_body_state_subscriber_py import WholeBodyStateSubscriber
 
 from footstep_msgs.msg import GaitStatusOnNewPhase, SetSurfaces
+from footstep_msgs.srv import Clearmap
 from surface_planner_ros.step_manager_interface import StepManagerInterface
 from surface_planner_ros.surface_planner_interface import SurfacePlannerInterface
 from surface_planner_ros.world_visualization import WorldVisualization
@@ -251,6 +252,10 @@ class SurfacePlannerNode():
         self.surface_planner_pub = rospy.Publisher(self._surface_planner_topic, SetSurfaces, queue_size=10)
         self.cmd_vel_sub = rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_callback, queue_size=1)
 
+        # Service to clear the surfaces under a certain height.
+        self._clearmap_srv = rospy.Service("walkgen/clearmap", Clearmap,
+                                                self.clearmapService)
+
         # ROS timer
         self.timer = rospy.Timer(rospy.Duration(0.001), self.timer_callback)
 
@@ -279,6 +284,18 @@ class SurfacePlannerNode():
 
         # Turn on planner
         self.planner_switch = True
+
+    def clearmapService(self, req):
+        """ Service function to remove the ground floor surfaces from the surface post-processing.
+        """
+        print("\n Clearmap service received.")
+        self.surface_processing.set_clearmap(req.clearmap)
+        self.surface_processing.set_offset_clearmap(req.offset)
+        print("Clearmap parameter : ", self.surface_processing._clearmap)
+        print("Offset parameter   : ", self.surface_processing._offsets_clearmap)
+        print("\n")
+
+        return True
 
     def timer_callback(self, event):
         if self.planner_switch and self.first_set_surfaces:
