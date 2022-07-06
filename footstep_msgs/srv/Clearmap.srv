@@ -1,0 +1,4 @@
+bool clearmap # Remove the ground floor.
+float64 offset # Offset from the initial height to remove.
+---
+bool success   # indicate successful run of adding contact schedules to MPC
