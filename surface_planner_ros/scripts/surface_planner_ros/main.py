@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2022 University of Edinburgh
 # All rights reserved.
@@ -34,7 +34,7 @@ from surface_planner_ros.surface_planner_node import SurfacePlannerNode
 
 def main(args=None):
     rospy.init_node('surface_planner')
-    surface_planner = SurfacePlannerNode()
+    surface_planner_node = SurfacePlannerNode()
     rospy.spin()
 
 
