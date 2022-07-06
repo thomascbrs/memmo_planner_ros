@@ -273,7 +273,7 @@ class SurfacePlannerNode():
     def footstep_manager_callback(self, msg):
         """ Extract data from foostep manager.
         """
-        self.gait, self.footsteps, q_filter = self.step_manager_interface.writeFromMessage(msg)
+        self.gait, self.footsteps, q_filter = self.footstep_manager_interface.writeFromMessage(msg)
         self.q_filter[:3] = q_filter[:3]
         self.q_filter[3:7] = pinocchio.Quaternion(pinocchio.rpy.rpyToMatrix(q_filter[3:])).coeffs()
 
