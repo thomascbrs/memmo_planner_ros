@@ -54,8 +54,8 @@ surface_planner:
   N_uds: walkgen/N_uds
 
   # Heightmap and URDF path
-  path: /usr/local/share/uoe_lab_resources
-  stl: /meshes/lab_scene.stl
+  path: /home/thomas_cbrs/devel/memmo_anymal/walkgen_surface_processing/python/walkgen_surface_processing/data
+  stl: /meshes/lab_scene_2.stl
 
   # Topic to exchange with footstep planner
   footstep_manager_topic: /walkgen/fstep_manager
