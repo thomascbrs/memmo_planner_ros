@@ -101,7 +101,6 @@ class SurfacePlannerNode():
         # Compute the average height of the robot
         counter_height = 0
         height_ = []
-        offset_height = -0.85
         q0 = None
         while not rospy.is_shutdown() and counter_height < 20:
             if self._ws_sub.has_new_whole_body_state_message():
@@ -131,7 +130,7 @@ class SurfacePlannerNode():
                 height_.append(h/4)
                 counter_height += 1
                 q0 = q
-                rospy.sleep(0.1)
+                rospy.sleep(0.01)
             elif counter_height == 0:
                 rospy.loginfo("Waiting for a new whole body state message.")
                 rospy.sleep(1)
@@ -209,6 +208,8 @@ class SurfacePlannerNode():
         # Visualization tools
         if self._visualization:
             self.world_visualization = WorldVisualization()
+            self.marker_pub = rospy.Publisher("surface_planner/visualization_marker", Marker, queue_size=10)
+            self.marker_array_pub = rospy.Publisher("surface_planner/visualization_marker_array", MarkerArray, queue_size=10)
             if not self.plane_seg:  # Publish URDF environment
                 print("Publishing world...")
                 # self.world_visualization = WalkgenVisualizationPublisher()
@@ -217,11 +218,6 @@ class SurfacePlannerNode():
                 worldMesh = self.params_surface_processing.path + self.params_surface_processing.stl
                 worldPose = self._q
                 worldPose[2] = initial_height
-
-                self.marker_pub = rospy.Publisher(
-                    "surface_planner/visualization_marker", Marker, queue_size=10)
-                self.marker_array_pub = rospy.Publisher(
-                    "surface_planner/visualization_marker_array", MarkerArray, queue_size=10)
 
                 rospy.sleep(1.)  # Not working otherwise
 
@@ -276,9 +272,10 @@ class SurfacePlannerNode():
         self.surfaces_processed = self.surface_processing.run(self._q[:3], msg)
         self.new_surfaces = True
         self.first_set_surfaces = True
-        surfaces = [np.array(value).T for key,value in self.surfaces_processed.items()]
-        msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
-        self.marker_array_pub.publish(msg)
+        if self._visualization:
+            surfaces = [np.array(value).T for key,value in self.surfaces_processed.items()]
+            msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
+            self.marker_array_pub.publish(msg)
 
     def footstep_manager_callback(self, msg):
         """ Extract data from foostep manager.
