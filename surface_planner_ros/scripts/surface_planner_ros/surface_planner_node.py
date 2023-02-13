@@ -49,6 +49,7 @@ from surface_planner_ros.world_visualization import WorldVisualization
 from walkgen_surface_planner import SurfacePlanner
 from walkgen_surface_planner.params import SurfacePlannerParams
 from walkgen_surface_processing.surface_detector import SurfaceDetector
+from walkgen_surface_processing.surface_loader import SurfaceLoader
 from walkgen_surface_processing.surface_processing import SurfaceProcessing
 from walkgen_surface_processing.params import SurfaceProcessingParams
 
@@ -150,6 +151,7 @@ class SurfacePlannerNode():
         # Post-processing & environment parameters
         self.params_surface_processing = SurfaceProcessingParams()
         self.params_surface_processing.plane_seg = rospy.get_param("~plane_seg")
+        self.params_surface_processing.extract_mehtodId = rospy.get_param("~extract_methodId")
         self.params_surface_processing.n_points = rospy.get_param("~n_points")
         self.params_surface_processing.method_id = rospy.get_param("~method_id")
         self.params_surface_processing.poly_size = rospy.get_param("~poly_size")
@@ -197,8 +199,10 @@ class SurfacePlannerNode():
             translation[:2] = self._q[:2]
             translation[-1] = initial_height
             R_ =  pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
-            surface_detector = SurfaceDetector(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin , "environment_")
-
+            if self.params_surface_processing.extract_mehtodId == 0 :
+                surface_detector = SurfaceDetector(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin , "environment_")
+            else :
+                surface_detector = SurfaceLoader(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin , "environment_")
             all_surfaces = surface_detector.extract_surfaces()
             self.surface_planner.set_surfaces(all_surfaces)
 
@@ -222,7 +226,8 @@ class SurfacePlannerNode():
                 rospy.sleep(1.)  # Not working otherwise
 
                 msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self.world_frame)
-                self.marker_pub.publish(msg)
+                if self.params_surface_processing.extract_mehtodId == 0 : # Publish only when using 1 single stl file.
+                    self.marker_pub.publish(msg)
 
                 surfaces = [np.array(value).T for value in all_surfaces.values()]
                 msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)

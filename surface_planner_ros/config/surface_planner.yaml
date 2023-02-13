@@ -17,6 +17,9 @@ surface_planner:
 
   # Use URDF of the environment or plane_seg visualisation.
   plane_seg: true
+  # Extract the scene as a single .stl file to post-process with hpp-affordance --> extract_methodId=0
+  # Extract the scene as a multiple .stl files --> extract_methodId=1
+  extract_methodId: 1
 
   # PlaneSeg parameters for postprocessing
   margin: 0.06  # Margin in [m] inside the convex surfaces
@@ -61,7 +64,7 @@ surface_planner:
   stl: /meshes/lab_scene_2.stl
 
   # Topic to exchange with footstep planner
-  footstep_manager_topic: /walkgen/footstep_manager
+  footstep_manager_topic: /walkgen/fstep_manager
   surface_planner_topic: /walkgen/surface_planner
   plane_seg_topic: /plane_seg/hull_marker_array
 
