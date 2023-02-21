@@ -101,7 +101,6 @@ class SurfacePlannerNode():
         # Compute the average height of the robot
         counter_height = 0
         height_ = []
-        offset_height = -0.85
         q0 = None
         while not rospy.is_shutdown() and counter_height < 20:
             if self._ws_sub.has_new_whole_body_state_message():
@@ -131,7 +130,7 @@ class SurfacePlannerNode():
                 height_.append(h/4)
                 counter_height += 1
                 q0 = q
-                rospy.sleep(0.1)
+                rospy.sleep(0.01)
             elif counter_height == 0:
                 rospy.loginfo("Waiting for a new whole body state message.")
                 rospy.sleep(1)
@@ -156,7 +155,8 @@ class SurfacePlannerNode():
         self.params_surface_processing.method_id = rospy.get_param("~method_id")
         self.params_surface_processing.poly_size = rospy.get_param("~poly_size")
         self.params_surface_processing.min_area = rospy.get_param("~min_area")
-        self.params_surface_processing.margin = rospy.get_param("~margin")
+        self.params_surface_processing.margin_inner = rospy.get_param("~margin_inner")
+        self.params_surface_processing.margin_outer = rospy.get_param("~margin_outer")
         self.params_surface_processing.path = rospy.get_param("~path")
         self.params_surface_processing.stl = rospy.get_param("~stl")
         self.plane_seg = self.params_surface_processing.plane_seg  # Use data from plane_seg.
@@ -200,15 +200,17 @@ class SurfacePlannerNode():
             translation[-1] = initial_height
             R_ =  pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
             if self.params_surface_processing.extract_mehtodId == 0 :
-                surface_detector = SurfaceDetector(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin , "environment_")
+                surface_detector = SurfaceDetector(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin_inner , "environment_")
             else :
-                surface_detector = SurfaceLoader(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin , "environment_")
+                surface_detector = SurfaceLoader(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation , "environment_", self.params_surface_processing)
             all_surfaces = surface_detector.extract_surfaces()
             self.surface_planner.set_surfaces(all_surfaces)
 
         # Visualization tools
         if self._visualization:
             self.world_visualization = WorldVisualization()
+            self.marker_pub = rospy.Publisher("surface_planner/visualization_marker", Marker, queue_size=10)
+            self.marker_array_pub = rospy.Publisher("surface_planner/visualization_marker_array", MarkerArray, queue_size=10)
             if not self.plane_seg:  # Publish URDF environment
                 print("Publishing world...")
                 # self.world_visualization = WalkgenVisualizationPublisher()
@@ -217,11 +219,6 @@ class SurfacePlannerNode():
                 worldMesh = self.params_surface_processing.path + self.params_surface_processing.stl
                 worldPose = self._q
                 worldPose[2] = initial_height
-
-                self.marker_pub = rospy.Publisher(
-                    "surface_planner/visualization_marker", Marker, queue_size=10)
-                self.marker_array_pub = rospy.Publisher(
-                    "surface_planner/visualization_marker_array", MarkerArray, queue_size=10)
 
                 rospy.sleep(1.)  # Not working otherwise
 
@@ -276,9 +273,10 @@ class SurfacePlannerNode():
         self.surfaces_processed = self.surface_processing.run(self._q[:3], msg)
         self.new_surfaces = True
         self.first_set_surfaces = True
-        surfaces = [np.array(value).T for key,value in self.surfaces_processed.items()]
-        msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
-        self.marker_array_pub.publish(msg)
+        if self._visualization:
+            surfaces = [np.array(value).T for key,value in self.surfaces_processed.items()]
+            msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
+            self.marker_array_pub.publish(msg)
 
     def footstep_manager_callback(self, msg):
         """ Extract data from foostep manager.
@@ -333,7 +331,7 @@ class SurfacePlannerNode():
 
             if self.surface_planner.pb_data.success:
                 t1 = clock()
-                print("SL1M optimization took [ms] : ", 1000 * (t1 - t0))
+                print("Run function took [ms] : ", 1000 * (t1 - t0))
                 if self._visualization:
                     t0 = clock()
                     # Publish world config
@@ -359,6 +357,7 @@ class SurfacePlannerNode():
 
                 t1 = clock()
                 print("Publisher took [ms] : ", 1000 * (t1 - t0))
+                print("\n --- \n")
 
             # Turn off planner
             self.planner_switch = False

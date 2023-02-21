@@ -22,7 +22,8 @@ surface_planner:
   extract_methodId: 1
 
   # PlaneSeg parameters for postprocessing
-  margin: 0.06  # Margin in [m] inside the convex surfaces
+  margin_inner: 0.02  # Margin in [m] inside the convex surfaces (sfae footstep planinng)
+  margin_outer: 0.02  # Margin in [m] ouside the convex surfaces (collision avoidance)
   n_points: 10  # Maximum Number of points for for each convex surface
 
   # Method to remove the overlapping between surfaces :
