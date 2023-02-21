@@ -22,8 +22,9 @@ surface_planner:
   extract_methodId: 1
 
   # PlaneSeg parameters for postprocessing
-  margin: 0.065  # Margin in [m] inside the convex surfaces
-  n_points: 6  # Maximum Number of points for for each convex surface
+  margin_inner: 0.02  # Margin in [m] inside the convex surfaces (sfae footstep planinng)
+  margin_outer: 0.02  # Margin in [m] ouside the convex surfaces (collision avoidance)
+  n_points: 8  # Maximum Number of points for for each convex surface
 
   # Method to remove the overlapping between surfaces :
   # 1. Run the list of surfaces starting with the lowest.
@@ -57,8 +58,8 @@ surface_planner:
   N_uds: walkgen/N_uds
 
   # Heightmap and URDF path
-  path: /home/thomas_cbrs/devel/memmo_anymal/walkgen_surface_processing/python/walkgen_surface_processing/data
-  stl: /meshes/lab_scene_2.stl
+  path: /home/thomas_cbrs/install/lib/python3.8/site-packages/walkgen_surface_processing/data/
+  stl: /meshes/parcours2/
 
   # Topic to exchange with footstep planner
   footstep_manager_topic: /walkgen/fstep_manager

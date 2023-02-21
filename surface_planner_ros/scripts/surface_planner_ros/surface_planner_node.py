@@ -155,7 +155,8 @@ class SurfacePlannerNode():
         self.params_surface_processing.method_id = rospy.get_param("~method_id")
         self.params_surface_processing.poly_size = rospy.get_param("~poly_size")
         self.params_surface_processing.min_area = rospy.get_param("~min_area")
-        self.params_surface_processing.margin = rospy.get_param("~margin")
+        self.params_surface_processing.margin_inner = rospy.get_param("~margin_inner")
+        self.params_surface_processing.margin_outer = rospy.get_param("~margin_outer")
         self.params_surface_processing.path = rospy.get_param("~path")
         self.params_surface_processing.stl = rospy.get_param("~stl")
         self.plane_seg = self.params_surface_processing.plane_seg  # Use data from plane_seg.
@@ -199,9 +200,9 @@ class SurfacePlannerNode():
             translation[-1] = initial_height
             R_ =  pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
             if self.params_surface_processing.extract_mehtodId == 0 :
-                surface_detector = SurfaceDetector(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin , "environment_")
+                surface_detector = SurfaceDetector(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin_inner , "environment_")
             else :
-                surface_detector = SurfaceLoader(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin , "environment_")
+                surface_detector = SurfaceLoader(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation , "environment_", self.params_surface_processing)
             all_surfaces = surface_detector.extract_surfaces()
             self.surface_planner.set_surfaces(all_surfaces)
 
@@ -330,7 +331,7 @@ class SurfacePlannerNode():
 
             if self.surface_planner.pb_data.success:
                 t1 = clock()
-                print("SL1M optimization took [ms] : ", 1000 * (t1 - t0))
+                print("Run function took [ms] : ", 1000 * (t1 - t0))
                 if self._visualization:
                     t0 = clock()
                     # Publish world config
@@ -356,6 +357,7 @@ class SurfacePlannerNode():
 
                 t1 = clock()
                 print("Publisher took [ms] : ", 1000 * (t1 - t0))
+                print("\n --- \n")
 
             # Turn off planner
             self.planner_switch = False
