@@ -46,6 +46,7 @@ from footstep_msgs.srv import Clearmap
 from surface_planner_ros.step_manager_interface import StepManagerInterface
 from surface_planner_ros.surface_planner_interface import SurfacePlannerInterface
 from surface_planner_ros.world_visualization import WorldVisualization
+from surface_planner_ros.Logger import Logger
 from walkgen_surface_planner import SurfacePlanner
 from walkgen_surface_planner.params import SurfacePlannerParams
 from walkgen_surface_processing.surface_detector import SurfaceDetector
@@ -135,10 +136,13 @@ class SurfacePlannerNode():
                 rospy.loginfo("Waiting for a new whole body state message.")
                 rospy.sleep(1)
 
+        # q0 = np.array([-0.14775595, -0.09449472, -0.19693717, -0.0014545 , -0.00672452, 0.05469787,  0.99847925])
         print("Initial configuration in world frame : ", q0[:7])
         self._q = q0[:7]
         print("Average height for initial surface : ", np.mean(height_))
         print("-------------")
+
+        height_ = -0.6293412954569181
         initial_height = np.mean(height_)
 
         self._visualization = rospy.get_param("~visualization")
@@ -162,7 +166,52 @@ class SurfacePlannerNode():
         self.plane_seg = self.params_surface_processing.plane_seg  # Use data from plane_seg.
         self.surface_processing = SurfaceProcessing(initial_height= initial_height, params = self.params_surface_processing)
         self.first_set_surfaces = False
+        
+        # Records timings
+        self._RECORDING = rospy.get_param("~recording")
+        if self._RECORDING:
+            folder_path = rospy.get_param("~folder_path")
+            self._logger = Logger(folder_path)       
+            
+        if not self.plane_seg:
+            self.first_set_surfaces = True # Always available using plane_seg
+            # Extract surfaces from URDF file.
+            # surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
+            translation = np.zeros(3)
+            translation[:2] = self._q[:2]
+            translation[-1] = initial_height
+            R_ =  pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
+            if self.params_surface_processing.extract_mehtodId == 0 :
+                surface_detector = SurfaceDetector(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin_inner , "environment_")
+            else :
+                surface_detector = SurfaceLoader(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation , "environment_", self.params_surface_processing,True)
+            all_surfaces = surface_detector.extract_surfaces()
 
+        # Visualization tools
+        if self._visualization:
+            self.world_visualization = WorldVisualization()
+            self.marker_pub = rospy.Publisher("surface_planner/visualization_marker_2", Marker, queue_size=10)
+            self.marker_array_pub = rospy.Publisher("surface_planner/visualization_marker_array_2", MarkerArray, queue_size=10)
+            if not self.plane_seg:  # Publish URDF environment
+                print("Publishing world...")
+                # self.world_visualization = WalkgenVisualizationPublisher()
+                rospy.sleep(1.)  # Not working otherwise
+
+                worldMesh = self.params_surface_processing.path + self.params_surface_processing.stl
+                worldPose = self._q
+                worldPose[2] = initial_height
+
+                rospy.sleep(1.)  # Not working otherwise
+
+                msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self.world_frame)
+                if self.params_surface_processing.extract_mehtodId == 0 : # Publish only when using 1 single stl file.
+                    self.marker_pub.publish(msg)
+
+                surfaces = [np.array(value).T for value in all_surfaces.values()]
+                msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
+                self.marker_array_pub.publish(msg)
+
+        
         ## Surface planner
         # Waiting for MPC-Walkgen parameters
         while not rospy.is_shutdown():
@@ -190,45 +239,9 @@ class SurfacePlannerNode():
         self.params_surface_planner.fitlength = rospy.get_param("~fitlength")
         self.params_surface_planner.recompute_slope = rospy.get_param("~recompute_slope")
         self.surface_planner = SurfacePlanner(self.params_surface_planner)
-
+        
         if not self.plane_seg:
-            self.first_set_surfaces = True # Always available using plane_seg
-            # Extract surfaces from URDF file.
-            # surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
-            translation = np.zeros(3)
-            translation[:2] = self._q[:2]
-            translation[-1] = initial_height
-            R_ =  pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
-            if self.params_surface_processing.extract_mehtodId == 0 :
-                surface_detector = SurfaceDetector(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin_inner , "environment_")
-            else :
-                surface_detector = SurfaceLoader(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation , "environment_", self.params_surface_processing)
-            all_surfaces = surface_detector.extract_surfaces()
             self.surface_planner.set_surfaces(all_surfaces)
-
-        # Visualization tools
-        if self._visualization:
-            self.world_visualization = WorldVisualization()
-            self.marker_pub = rospy.Publisher("surface_planner/visualization_marker", Marker, queue_size=10)
-            self.marker_array_pub = rospy.Publisher("surface_planner/visualization_marker_array", MarkerArray, queue_size=10)
-            if not self.plane_seg:  # Publish URDF environment
-                print("Publishing world...")
-                # self.world_visualization = WalkgenVisualizationPublisher()
-                rospy.sleep(1.)  # Not working otherwise
-
-                worldMesh = self.params_surface_processing.path + self.params_surface_processing.stl
-                worldPose = self._q
-                worldPose[2] = initial_height
-
-                rospy.sleep(1.)  # Not working otherwise
-
-                msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self.world_frame)
-                if self.params_surface_processing.extract_mehtodId == 0 : # Publish only when using 1 single stl file.
-                    self.marker_pub.publish(msg)
-
-                surfaces = [np.array(value).T for value in all_surfaces.values()]
-                msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
-                self.marker_array_pub.publish(msg)
 
         # Surface filtered
         self.surfaces_processed = None
@@ -270,7 +283,13 @@ class SurfacePlannerNode():
         """ Filter and store incoming convex surfaces from plane_seg.
         """
         print("\n -----Marker array received-----   \n")
+        t0 = clock()
         self.surfaces_processed = self.surface_processing.run(self._q[:3], msg)
+        t1 = clock()
+        if self._RECORDING:
+            self._logger._profiler["timing_processing"].append(t1 - t0)
+            self._logger._profiler["processing_number"].append(len(self.surfaces_processed.values()))
+        print("Process hull marker [ms] : ", 1000 * (t1 - t0))
         self.new_surfaces = True
         self.first_set_surfaces = True
         if self._visualization:
@@ -328,7 +347,13 @@ class SurfacePlannerNode():
                 self.surface_planner.set_surfaces(self.surfaces_processed)  # Update surfaces
                 self.new_surfaces = False
             selected_surfaces = self.surface_planner.run(self.q_filter, self.gait, self.cmd_vel, self.footsteps)
-
+            
+            if self._RECORDING:
+                self._logger.update_logger(self.surface_planner.get_profiler())
+                self._logger.write_data()
+                # Reset processing
+                self._logger.reset_data()
+            
             if self.surface_planner.pb_data.success:
                 t1 = clock()
                 print("Run function took [ms] : ", 1000 * (t1 - t0))

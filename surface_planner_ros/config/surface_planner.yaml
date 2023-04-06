@@ -36,7 +36,7 @@ surface_planner:
   #     - CONVEX (2): Apply the difference with the convex hull of the upper surfaces that intersect, to avoid
   #               having small surfaces between the upper surfaces.
   #     - AREA_CONVEX (3): Both 1 and 2 methods.
-  method_id: 3
+  method_id: 1
   poly_size: 10  # Maximum size of the polygon for the convex decomposition.
   min_area: 0.03  # Area under which the remaining surfaces is delated.
 
@@ -66,8 +66,13 @@ surface_planner:
 
   # Topic to exchange with footstep planner
   footstep_manager_topic: /walkgen/fstep_manager
-  surface_planner_topic: /walkgen/surface_planner
+  # surface_planner_topic: /walkgen/surface_planner
+  surface_planner_topic: /walkgen/surface_planner_r
   plane_seg_topic: /plane_seg/hull_marker_array
 
   # Visualization, publish marker and markerArray for RVIZ visualization
   visualization: true
+
+  # Record timing in a .txt file
+  recording: true
+  folder_path: "/home/thomas_cbrs/devel/tmp/paper_timings/stair_down/timings/" 
