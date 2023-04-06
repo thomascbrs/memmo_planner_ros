@@ -56,7 +56,7 @@ rosrun memmo_teleop memmo_teleop_keyboard
 
 - Publisher for visualization.
 
-- Publisher of SetSurfaces containing the surfaces chosen by Sl1m. 
+- Publisher of SetSurfaces containing the surfaces chosen by Sl1m.
 
 
 
