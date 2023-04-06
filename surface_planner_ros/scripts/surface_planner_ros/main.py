@@ -33,8 +33,16 @@ from surface_planner_ros.surface_planner_node import SurfacePlannerNode
 
 
 def main(args=None):
+    # Disable garbage collection for better timings. Note, this may lead to memory leaks (not observed for 20+ mins of operation)
+    import gc
+    gc.disable()
+
+   
     rospy.init_node('surface_planner')
     surface_planner_node = SurfacePlannerNode()
+     # Register signal for graceful Ctrl+C
+    def sig_int_handler(signal, frame):
+        raise KeyboardInterrupt
     rospy.spin()
 
 
