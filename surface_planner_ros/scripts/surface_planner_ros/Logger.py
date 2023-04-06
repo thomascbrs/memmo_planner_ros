@@ -24,7 +24,7 @@ class Logger():
         folder_path = folder_path.rstrip(os.path.sep)
         
         # Create the file path
-        file_name = os.path.join(folder_path,datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%fZ") + ".bin")
+        file_name = os.path.join(folder_path,"planner_" + datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%fZ") + ".bin")
         self._file = open(file_name, "ab")
         self._counter = 0
         self._flushFrequency = 2
