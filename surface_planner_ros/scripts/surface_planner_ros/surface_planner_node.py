@@ -97,61 +97,26 @@ class SurfacePlannerNode():
         self._oMb = pinocchio.SE3(self._rot, np.zeros(3))
         self._mMb = pinocchio.SE3(self._rot, np.zeros(3))
 
-        print("\n")
-        print("Initialize height of the initial surface...\n")
-        # Compute the average height of the robot
-        counter_height = 0
-        height_ = []
-        q0 = None
-        while not rospy.is_shutdown() and counter_height < 20:
-            if self._ws_sub.has_new_whole_body_state_message():
-                t0, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
-
-                # Update the drift between the odom and world frames
-                if self.use_drift_compensation:
-                    try:
-                        self._mMo.translation[:], (self._rot.x, self._rot.y, self._rot.z,
-                                                   self._rot.w) = self._tf_listener.lookupTransform(
-                                                       self.world_frame, self.odom_frame, rospy.Time())
-                        self._mMo.rotation = self._rot.toRotationMatrix()
-                    except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                        pass
-                # Map the current state from odom to world frame
-                self._oMb.translation[:] = q[:3]
-                self._rot.x, self._rot.y, self._rot.z, self._rot.w = q[3:7]
-                self._oMb.rotation = self._rot.toRotationMatrix()
-                q[:7] = pinocchio.SE3ToXYZQUAT(self._mMo.act(self._oMb))
-
-                pinocchio.forwardKinematics(self._model, self._data, q)
-                pinocchio.updateFramePlacements(self._model, self._data)
-                h = 0
-                for name in self.feet_3d_names:
-                    frameId = self._model.getFrameId(name)
-                    h += self._data.oMf[frameId].translation[2]
-                height_.append(h/4)
-                counter_height += 1
-                q0 = q
-                rospy.sleep(0.01)
-            elif counter_height == 0:
-                rospy.loginfo("Waiting for a new whole body state message.")
-                rospy.sleep(1)
-
-        # q0 = np.array([-0.14775595, -0.09449472, -0.19693717, -0.0014545 , -0.00672452, 0.05469787,  0.99847925])
-        print("Initial configuration in world frame : ", q0[:7])
-        self._q = q0[:7]
-        print("Average height for initial surface : ", np.mean(height_))
-        print("-------------")
-
-        height_ = -0.6293412954569181
-        initial_height = np.mean(height_)
+        if rospy.has_param(rospy.get_param("~initial_config")):
+            self._q = np.array(rospy.get_param(rospy.get_param("~initial_config")))
+            initial_height = rospy.get_param(rospy.get_param("~initial_floor_height"))
+        else:
+            # Get initial config & update server parameter.
+            self._q, initial_height = self.set_initial_configuration()            
 
         self._visualization = rospy.get_param("~visualization")
         self._footstep_manager_topic = rospy.get_param("~footstep_manager_topic")
         self._surface_planner_topic = rospy.get_param("~surface_planner_topic")
         self._plane_seg_topic = rospy.get_param("~plane_seg_topic")
-
+        
+        # Records timings
+        self._RECORDING = rospy.get_param("~recording")
+        if self._RECORDING:
+            folder_path = rospy.get_param("~folder_path")
+            self._logger = Logger(folder_path)
+        
+        ########
         ## Surface processing
-        # Post-processing & environment parameters
         self.params_surface_processing = SurfaceProcessingParams()
         self.params_surface_processing.plane_seg = rospy.get_param("~plane_seg")
         self.params_surface_processing.extract_mehtodId = rospy.get_param("~extract_methodId")
@@ -167,11 +132,19 @@ class SurfacePlannerNode():
         self.surface_processing = SurfaceProcessing(initial_height= initial_height, params = self.params_surface_processing)
         self.first_set_surfaces = False
         
-        # Records timings
-        self._RECORDING = rospy.get_param("~recording")
-        if self._RECORDING:
-            folder_path = rospy.get_param("~folder_path")
-            self._logger = Logger(folder_path)       
+        
+        ########
+        ## Surface Planner parameters independant from MPC-Walkgen-Caracal
+        self.params_surface_planner = SurfacePlannerParams()
+        self.params_surface_planner.N_phase_return = rospy.get_param("~N_phase_return")
+        self.params_surface_planner.horizon = rospy.get_param("~horizon")
+        self.params_surface_planner.com = rospy.get_param("~com")
+        # Heightmap parameters
+        self.params_surface_planner.fitsize_x = rospy.get_param("~fitsize_x")
+        self.params_surface_planner.fitsize_y = rospy.get_param("~fitsize_y")
+        self.params_surface_planner.fitlength = rospy.get_param("~fitlength")
+        self.params_surface_planner.recompute_slope = rospy.get_param("~recompute_slope")
+        self.surface_planner = SurfacePlanner(self.params_surface_planner, RECORDING=self._RECORDING)
             
         if not self.plane_seg:
             self.first_set_surfaces = True # Always available using plane_seg
@@ -182,63 +155,41 @@ class SurfacePlannerNode():
             translation[-1] = initial_height
             R_ =  pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
             if self.params_surface_processing.extract_mehtodId == 0 :
+                # Single file .stl
                 surface_detector = SurfaceDetector(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin_inner , "environment_")
             else :
+                # Folder containing multiple .stl files. 
                 surface_detector = SurfaceLoader(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation , "environment_", self.params_surface_processing,True)
             all_surfaces = surface_detector.extract_surfaces()
 
         # Visualization tools
         if self._visualization:
             self.world_visualization = WorldVisualization()
-            self.marker_pub = rospy.Publisher("surface_planner/visualization_marker_2", Marker, queue_size=10)
-            self.marker_array_pub = rospy.Publisher("surface_planner/visualization_marker_array_2", MarkerArray, queue_size=10)
+            self.marker_pub = rospy.Publisher("surface_planner/visualization_marker", Marker, queue_size=10)
+            self.marker_array_pub = rospy.Publisher("surface_planner/visualization_marker_array", MarkerArray, queue_size=10)
             if not self.plane_seg:  # Publish URDF environment
                 print("Publishing world...")
                 # self.world_visualization = WalkgenVisualizationPublisher()
-                rospy.sleep(1.)  # Not working otherwise
+                # rospy.sleep(1.)  # Not working otherwise
 
                 worldMesh = self.params_surface_processing.path + self.params_surface_processing.stl
                 worldPose = self._q
                 worldPose[2] = initial_height
 
-                rospy.sleep(1.)  # Not working otherwise
+                # rospy.sleep(1.)  # Not working otherwise
 
                 msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self.world_frame)
-                if self.params_surface_processing.extract_mehtodId == 0 : # Publish only when using 1 single stl file.
-                    self.marker_pub.publish(msg)
+                # if self.params_surface_processing.extract_mehtodId == 0 : # Publish only when using 1 single stl file.
+                #     self.marker_pub.publish(msg)
+                #     print("PUBLISHED")
 
                 surfaces = [np.array(value).T for value in all_surfaces.values()]
                 msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
                 self.marker_array_pub.publish(msg)
 
         
-        ## Surface planner
-        # Waiting for MPC-Walkgen parameters
-        while not rospy.is_shutdown():
-            if rospy.has_param(rospy.get_param("~N_uds")):
-                break
-            else:
-                rospy.loginfo("Waiting for MPC-Walkgen")
-                rospy.sleep(1)
 
-        # Surface Planner parameters independant from MPC-Walkgen-Caracal
-        self.params_surface_planner = SurfacePlannerParams()
-        self.params_surface_planner.N_phase = rospy.get_param("~N_phase")
-        self.params_surface_planner.com = rospy.get_param("~com")
-        self.params_surface_planner.typeGait = rospy.get_param(rospy.get_param("~typeGait"))
-        self.params_surface_planner.N_ss = rospy.get_param(rospy.get_param("~N_ss"))
-        self.params_surface_planner.N_ds = rospy.get_param(rospy.get_param("~N_ds"))
-        self.params_surface_planner.N_uss = rospy.get_param(rospy.get_param("~N_uss"))
-        self.params_surface_planner.N_uds = rospy.get_param(rospy.get_param("~N_uds"))
-        self.params_surface_planner.dt = rospy.get_param(rospy.get_param("~dt"))
-        self.params_surface_planner.N_phase_return = rospy.get_param(rospy.get_param("~N_phase_return"))
-        if self.params_surface_planner.N_phase_return > self.params_surface_planner.N_phase:
-            warnings.warn("More phases in the MPC horizon than planned bby the MIP. The last surface selected will be used multiple times.")
-        self.params_surface_planner.fitsize_x = rospy.get_param("~fitsize_x")
-        self.params_surface_planner.fitsize_y = rospy.get_param("~fitsize_y")
-        self.params_surface_planner.fitlength = rospy.get_param("~fitlength")
-        self.params_surface_planner.recompute_slope = rospy.get_param("~recompute_slope")
-        self.surface_planner = SurfacePlanner(self.params_surface_planner)
+        
         
         if not self.plane_seg:
             self.surface_planner.set_surfaces(all_surfaces)
@@ -246,7 +197,10 @@ class SurfacePlannerNode():
         # Surface filtered
         self.surfaces_processed = None
         self.new_surfaces = False
+        # Gait matrix.
         self.gait = None
+        # List of timings associated with the gait matrix.
+        self.gait_timings = None
         self.footsteps = np.zeros((3, 4))
         self.q_filter = np.zeros(7)
 
@@ -272,7 +226,7 @@ class SurfacePlannerNode():
                                                 self.clearmapService)
 
         # ROS timer
-        self.timer = rospy.Timer(rospy.Duration(0.001), self.timer_callback)
+        self.timer = rospy.Timer(rospy.Duration(0.005), self.timer_callback)
 
     def cmd_vel_callback(self, msg):
         self.cmd_vel[0] = msg.linear.x
@@ -300,7 +254,7 @@ class SurfacePlannerNode():
     def footstep_manager_callback(self, msg):
         """ Extract data from foostep manager.
         """
-        self.gait, self.footsteps, q_filter = self.footstep_manager_interface.writeFromMessage(msg)
+        self.gait, self.gait_timings, self.footsteps, q_filter = self.footstep_manager_interface.writeFromMessage(msg)
         self.q_filter[:3] = q_filter[:3]
         self.q_filter[3:7] = pinocchio.Quaternion(pinocchio.rpy.rpyToMatrix(q_filter[3:])).coeffs()
 
@@ -346,8 +300,8 @@ class SurfacePlannerNode():
             if self.new_surfaces:
                 self.surface_planner.set_surfaces(self.surfaces_processed)  # Update surfaces
                 self.new_surfaces = False
-            selected_surfaces = self.surface_planner.run(self.q_filter, self.gait, self.cmd_vel, self.footsteps)
-            
+            selected_surfaces = self.surface_planner.run(self.q_filter, self.gait,self.gait_timings, self.cmd_vel, self.footsteps)
+
             if self._RECORDING:
                 self._logger.update_logger(self.surface_planner.get_profiler())
                 self._logger.write_data()
@@ -386,3 +340,49 @@ class SurfacePlannerNode():
 
             # Turn off planner
             self.planner_switch = False
+    
+    def set_initial_configuration(self):
+        """Set the initial configuration in world frame to the server param. Usefull for SL1M to be restarted on the fly.
+        Set initial height of the ground. 
+        """
+        # Compute the average height of the robot
+        counter_height = 0
+        height_ = []
+        q0 = None
+        while not rospy.is_shutdown() and counter_height < 10:
+            if self._ws_sub.has_new_whole_body_state_message():
+                t0, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
+
+                # Update the drift between the odom and world frames
+                if self.use_drift_compensation:
+                    try:
+                        self._mMo.translation[:], (self._rot.x, self._rot.y, self._rot.z,
+                                                   self._rot.w) = self._tf_listener.lookupTransform(
+                                                       self.world_frame, self.odom_frame, rospy.Time())
+                        self._mMo.rotation = self._rot.toRotationMatrix()
+                    except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                        pass
+                # Map the current state from odom to world frame
+                self._oMb.translation[:] = q[:3]
+                self._rot.x, self._rot.y, self._rot.z, self._rot.w = q[3:7]
+                self._oMb.rotation = self._rot.toRotationMatrix()
+                q[:7] = pinocchio.SE3ToXYZQUAT(self._mMo.act(self._oMb))
+
+                pinocchio.forwardKinematics(self._model, self._data, q)
+                pinocchio.updateFramePlacements(self._model, self._data)
+                h = 0
+                for name in self.feet_3d_names:
+                    frameId = self._model.getFrameId(name)
+                    h += self._data.oMf[frameId].translation[2]
+                height_.append(h/4)
+                counter_height += 1
+                q0 = q
+                rospy.sleep(0.01)
+            # elif counter_height == 0:
+            #     rospy.loginfo("Waiting for a new whole body state message.")
+            #     # rospy.sleep(1)
+        
+        print("Setting initial parameters on rosparam server.")
+        rospy.set_param(rospy.get_param("~initial_config"), q0[:7].tolist())
+        rospy.set_param(rospy.get_param("~initial_floor_height"), float(np.mean(height_)) )
+        return  q0[:7], np.mean(height_)

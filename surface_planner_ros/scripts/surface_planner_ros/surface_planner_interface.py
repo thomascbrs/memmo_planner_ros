@@ -48,7 +48,7 @@ class SurfacePlannerInterface():
         """
         self._msg.header.stamp = rospy.Time(t)
         self._msg.set_surfaces = []
-        for key in set_surfaces:
+        for key in set_surfaces.keys():
             msg_tmp = FootSurfaces()
             msg_tmp.name = key
             for sf in set_surfaces[key]:

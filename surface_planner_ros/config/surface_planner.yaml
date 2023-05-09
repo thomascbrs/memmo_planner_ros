@@ -15,16 +15,19 @@ surface_planner:
   robot_description: anymal_description
   3d_feet: [LF_FOOT, LH_FOOT, RF_FOOT, RH_FOOT]
 
-  # Use URDF of the environment or plane_seg visualisation.
-  plane_seg: true
+  ###################
+  ### PlaneSeg parameters for postprocessing, using SurfaceProcessingParams()
+  plane_seg: false
+  
   # Extract the scene as a single .stl file to post-process with hpp-affordance --> extract_methodId=0
   # Extract the scene as a multiple .stl files --> extract_methodId=1
-  extract_methodId: 1
+  extract_methodId: 0
+  path: /home/thomas_cbrs/install/share/walkgen-environment-data/environments # Path to .stl file.
+  stl: /meshes/lab_scene.stl # File name. If method == 1 : folder name.
 
-  # PlaneSeg parameters for postprocessing
-  margin_inner: 0.02  # Margin in [m] inside the convex surfaces (sfae footstep planinng)
-  margin_outer: 0.02  # Margin in [m] ouside the convex surfaces (collision avoidance)
-  n_points: 10  # Maximum Number of points for for each convex surface
+  margin_inner: 0.04  # Margin in [m] inside the convex surfaces (sfae footstep planinng)
+  margin_outer: 0.06  # Margin in [m] ouside the convex surfaces (collision avoidance)
+  n_points: 8  # Maximum Number of points for for each convex surface
 
   # Method to remove the overlapping between surfaces :
   # 1. Run the list of surfaces starting with the lowest.
@@ -40,39 +43,31 @@ surface_planner:
   poly_size: 10  # Maximum size of the polygon for the convex decomposition.
   min_area: 0.03  # Area under which the remaining surfaces is delated.
 
-  # Surface planner parameters independant from MPC-Walkgen
-  N_phase: 2  # Number of phases computing by SL1M (1 phase = whole walking gait, 4 foot moving)
+  ####################
+  ### Surface planner parameters, using SurfacePlannerParams()
   com: false  # Optimize CoM trajectory in SL1M
+  horizon: 8 # MAximum number of optimised fsteps.
+  N_phase_return: 3 # Number of surfaces returned by SL1M for each foot.
+  # Heightmap
   fitsize_x: 10  # Number of point on x-axis (base frame) to evaluate the terrain height
   fitsize_y: 5  # Number of point on y-axis (base frame) to evaluate the terrain height
   fitlength: 0.3  # Square size [m] around the position of the robot to evaluate the terrain height
   recompute_slope: true  # Recompute the slope of the terrain for each contact phase configuration
+  # Recording
+  recording: false # Record timing in a .txt file
+  folder_path: "/home/thomas_cbrs/devel/tmp/paper_timings/stair_down/timings/" # Folder path for recording 
 
-  # MPC-Walkgen parameters
-  N_phase_return: walkgen/N_phase_return  # Number of phases returned by SL1M
-  typeGait: walkgen/typeGait  # "Walk" or "Trot"
-  dt: walkgen/dt
-  N_ss: walkgen/N_ss
-  N_ds: walkgen/N_ds
-  N_uss: walkgen/N_uss
-  N_uds: walkgen/N_uds
-
-  # Heightmap and URDF path
-  path: /usr/local/share/uoe_lab_resources
-  # Stairs up
-  # stl: /meshes/lab_scene.stl
-  # Stairs down
-  stl: /meshes/lab_scene_2.stl
-
-  # Topic to exchange with footstep planner
+  ####################
+  ### Topic to exchange with footstep planner
   footstep_manager_topic: /walkgen/fstep_manager
-  # surface_planner_topic: /walkgen/surface_planner
-  surface_planner_topic: /walkgen/surface_planner_r
+  surface_planner_topic: /walkgen/surface_planner
   plane_seg_topic: /plane_seg/hull_marker_array
+  initial_config: walkgen/initial_config # Initial configuration.
+  initial_floor_height: walkgen/initial_floor_height # Initial floor height.
 
   # Visualization, publish marker and markerArray for RVIZ visualization
   visualization: true
 
-  # Record timing in a .txt file
-  recording: true
-  folder_path: "/home/thomas_cbrs/devel/tmp/paper_timings/stair_down/timings/" 
+
+
+  
