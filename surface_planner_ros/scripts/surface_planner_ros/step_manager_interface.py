@@ -42,9 +42,9 @@ class StepManagerPublisher():
             topic, GaitStatusOnNewPhase, queue_size=queue_size)
         self._stepmanager_iface = StepManagerInterface()
 
-    def publish(self, t, gait, target_foostep, q_filter):
+    def publish(self, t, gait,timings, target_foostep, q_filter):
         msg = self._stepmanager_iface.writeToMessage(
-            t, gait, target_foostep, q_filter)
+            t, gait,timings, target_foostep, q_filter)
         self._pub.publish(msg)
 
 
@@ -55,14 +55,17 @@ class StepManagerInterface():
         # Order of the feet in the surface planner.
         self._contact_names = ['LF_FOOT', 'RF_FOOT', 'LH_FOOT', 'RH_FOOT']
 
-    def writeToMessage(self, t, gait, foot_pos, q_filter):
+    def writeToMessage(self, t, gait, timings, foot_pos, q_filter):
         """ Write data to ROS message FootStepStateSL1M.
         Args:
             - t (time): Current timing.
             - gait (Array n_gait x 4): Next walking gait pattern.
+            - timings (list): List containing the timings associated with the gait.  
             - foot_pos (Array 3x4): Foot position for the next phase. (For the next phase of contact)
             - q_filter (array x6): Filtered state. (rpy)
         """
+        if len(timings) != gait.shape[0]:
+            raise AttributeError("Gait timings and gait should have the same size.")
         self._msg.header.stamp = rospy.Time(t)
 
         # Gait matrix
@@ -75,7 +78,19 @@ class StepManagerInterface():
         gait_mat.layout.dim[1].size = 4
         gait_mat.data = np.ravel(gait, order="C").tolist()
         self._msg.gait = gait_mat
-
+        
+        # Timings associated with the gait matrix
+        gait_timings = Float64MultiArray()
+        gait_timings.layout.dim.append(MultiArrayDimension())
+        gait_timings.layout.dim.append(MultiArrayDimension())
+        gait_timings.layout.dim[0].label = "height"
+        gait_timings.layout.dim[1].label = "width"
+        gait_timings.layout.dim[0].size = len(timings)
+        gait_timings.layout.dim[1].size = 1
+        for t in timings:
+            gait_timings.data.append(t)
+        self._msg.timings = gait_timings
+        
         # Target foosteps
         for k in range(4):
             self._msg.foot_pos[k].name = self._contact_names[k]
@@ -104,5 +119,9 @@ class StepManagerInterface():
 
         q_filter = np.zeros(6)
         q_filter[:] = msg.q_filter[:]
+        
+        i = msg.timings.layout.dim[0].size
+        # j = msg.timings.layout.dim[1].size
+        timings = np.reshape(msg.timings.data, ((i,)), order="C")
 
-        return gait, foot_pos, q_filter
+        return gait,timings, foot_pos, q_filter
