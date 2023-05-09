@@ -33,10 +33,8 @@
 #include <geometry_msgs/Twist.h>
 #include <ros/ros.h>
 
-namespace memmo_teleop
-{
-class MemmoTeleopKeyboard
-{
+namespace memmo_teleop {
+class MemmoTeleopKeyboard {
 public:
   MemmoTeleopKeyboard();
   ~MemmoTeleopKeyboard();
@@ -73,9 +71,9 @@ private:
   void run();
   void print_keyop();
   // TODO(JaehyunShim): print_vel should be curr vel? or ref vel?
-  void send_cmd_vel(double vel_lin_x, double vel_lin_y, double vel_lin_z, double vel_ang_x,
-                    double vel_ang_y, double vel_ang_z);
+  void send_cmd_vel(double vel_lin_x, double vel_lin_y, double vel_lin_z,
+                    double vel_ang_x, double vel_ang_y, double vel_ang_z);
   double enforce_vel_limit(double vel, double limit);
 };
-}  // namespace memmo_teleop
-#endif  // MEMMO_TELEOP__MEMMO_TELEOP_KEYBOARD_HPP_
+} // namespace memmo_teleop
+#endif // MEMMO_TELEOP__MEMMO_TELEOP_KEYBOARD_HPP_

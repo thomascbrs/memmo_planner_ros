@@ -28,16 +28,14 @@
 #ifndef MEMMO_TELEOP__MEMMO_TELEOP_JOYSTICK_HPP_
 #define MEMMO_TELEOP__MEMMO_TELEOP_JOYSTICK_HPP_
 
+#include <Eigen/Dense>
 #include <geometry_msgs/Twist.h>
+#include <math.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Joy.h>
-#include <math.h>
-#include <Eigen/Dense>
 
-namespace memmo_teleop
-{
-class MemmoTeleopJoystick
-{
+namespace memmo_teleop {
+class MemmoTeleopJoystick {
 public:
   MemmoTeleopJoystick();
   ~MemmoTeleopJoystick();
@@ -86,16 +84,16 @@ private:
 
   // ROS Subscriber
   ros::Subscriber joy_sub_;
-  void joy_callback(const sensor_msgs::Joy::ConstPtr & msg);
+  void joy_callback(const sensor_msgs::Joy::ConstPtr &msg);
   bool first_joy_received_;
 
   void print_joyop();
-  void update_joystick_continuous(const sensor_msgs::Joy::ConstPtr & msg);
-  void update_joystick_step(const sensor_msgs::Joy::ConstPtr & msg);
+  void update_joystick_continuous(const sensor_msgs::Joy::ConstPtr &msg);
+  void update_joystick_step(const sensor_msgs::Joy::ConstPtr &msg);
   // TODO(JaehyunShim): print_vel should be curr vel? or ref vel?
-  void send_cmd_vel(double vel_lin_x, double vel_lin_y, double vel_lin_z, double vel_ang_x,
-                    double vel_ang_y, double vel_ang_z);
+  void send_cmd_vel(double vel_lin_x, double vel_lin_y, double vel_lin_z,
+                    double vel_ang_x, double vel_ang_y, double vel_ang_z);
   double enforce_vel_limit(double vel, double limit);
 };
-}  // namespace memmo_teleop
-#endif  // MEMMO_TELEOP__MEMMO_TELEOP_JOYSTICK_HPP_
+} // namespace memmo_teleop
+#endif // MEMMO_TELEOP__MEMMO_TELEOP_JOYSTICK_HPP_

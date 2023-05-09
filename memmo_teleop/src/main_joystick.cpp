@@ -31,8 +31,7 @@
 
 // Reference: https://github.com/ros-teleop/teleop_twist_joy
 
-int main(int argc, char * argv[])
-{
+int main(int argc, char *argv[]) {
   // Init
   ros::init(argc, argv, "memmo_teleop_joystick");
   auto memmo_teleop_joystick = memmo_teleop::MemmoTeleopJoystick();

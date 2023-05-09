@@ -32,8 +32,7 @@
 // Reference:
 // https://github.com/ros-teleop/teleop_twist_keyboard/blob/master/teleop_twist_keyboard.py
 
-int main(int argc, char * argv[])
-{
+int main(int argc, char *argv[]) {
   // Init
   ros::init(argc, argv, "memmo_teleop_keyboard");
   auto memmo_teleop_keyboard = memmo_teleop::MemmoTeleopKeyboard();
