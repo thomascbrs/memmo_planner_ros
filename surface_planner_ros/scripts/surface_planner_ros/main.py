@@ -37,12 +37,13 @@ def main(args=None):
     import gc
     gc.disable()
 
-   
     rospy.init_node('surface_planner')
     surface_planner_node = SurfacePlannerNode()
-     # Register signal for graceful Ctrl+C
+
+    # Register signal for graceful Ctrl+C
     def sig_int_handler(signal, frame):
         raise KeyboardInterrupt
+
     rospy.spin()
 
 

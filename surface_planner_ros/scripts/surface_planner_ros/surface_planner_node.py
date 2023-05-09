@@ -102,19 +102,19 @@ class SurfacePlannerNode():
             initial_height = rospy.get_param(rospy.get_param("~initial_floor_height"))
         else:
             # Get initial config & update server parameter.
-            self._q, initial_height = self.set_initial_configuration()            
+            self._q, initial_height = self.set_initial_configuration()
 
         self._visualization = rospy.get_param("~visualization")
         self._footstep_manager_topic = rospy.get_param("~footstep_manager_topic")
         self._surface_planner_topic = rospy.get_param("~surface_planner_topic")
         self._plane_seg_topic = rospy.get_param("~plane_seg_topic")
-        
+
         # Records timings
         self._RECORDING = rospy.get_param("~recording")
         if self._RECORDING:
             folder_path = rospy.get_param("~folder_path")
             self._logger = Logger(folder_path)
-        
+
         ########
         ## Surface processing
         self.params_surface_processing = SurfaceProcessingParams()
@@ -129,10 +129,10 @@ class SurfacePlannerNode():
         self.params_surface_processing.path = rospy.get_param("~path")
         self.params_surface_processing.stl = rospy.get_param("~stl")
         self.plane_seg = self.params_surface_processing.plane_seg  # Use data from plane_seg.
-        self.surface_processing = SurfaceProcessing(initial_height= initial_height, params = self.params_surface_processing)
+        self.surface_processing = SurfaceProcessing(initial_height=initial_height,
+                                                    params=self.params_surface_processing)
         self.first_set_surfaces = False
-        
-        
+
         ########
         ## Surface Planner parameters independant from MPC-Walkgen-Caracal
         self.params_surface_planner = SurfacePlannerParams()
@@ -145,28 +145,34 @@ class SurfacePlannerNode():
         self.params_surface_planner.fitlength = rospy.get_param("~fitlength")
         self.params_surface_planner.recompute_slope = rospy.get_param("~recompute_slope")
         self.surface_planner = SurfacePlanner(self.params_surface_planner, RECORDING=self._RECORDING)
-            
+
         if not self.plane_seg:
-            self.first_set_surfaces = True # Always available using plane_seg
+            self.first_set_surfaces = True  # Always available using plane_seg
             # Extract surfaces from URDF file.
             # surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
             translation = np.zeros(3)
             translation[:2] = self._q[:2]
             translation[-1] = initial_height
-            R_ =  pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
-            if self.params_surface_processing.extract_mehtodId == 0 :
+            R_ = pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
+            if self.params_surface_processing.extract_mehtodId == 0:
                 # Single file .stl
-                surface_detector = SurfaceDetector(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation, self.params_surface_processing.margin_inner , "environment_")
-            else :
-                # Folder containing multiple .stl files. 
-                surface_detector = SurfaceLoader(self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation , "environment_", self.params_surface_processing,True)
+                surface_detector = SurfaceDetector(
+                    self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation,
+                    self.params_surface_processing.margin_inner, "environment_")
+            else:
+                # Folder containing multiple .stl files.
+                surface_detector = SurfaceLoader(
+                    self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation,
+                    "environment_", self.params_surface_processing, True)
             all_surfaces = surface_detector.extract_surfaces()
 
         # Visualization tools
         if self._visualization:
             self.world_visualization = WorldVisualization()
             self.marker_pub = rospy.Publisher("surface_planner/visualization_marker", Marker, queue_size=10)
-            self.marker_array_pub = rospy.Publisher("surface_planner/visualization_marker_array", MarkerArray, queue_size=10)
+            self.marker_array_pub = rospy.Publisher("surface_planner/visualization_marker_array",
+                                                    MarkerArray,
+                                                    queue_size=10)
             if not self.plane_seg:  # Publish URDF environment
                 print("Publishing world...")
                 # self.world_visualization = WalkgenVisualizationPublisher()
@@ -187,10 +193,6 @@ class SurfacePlannerNode():
                 msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
                 self.marker_array_pub.publish(msg)
 
-        
-
-        
-        
         if not self.plane_seg:
             self.surface_planner.set_surfaces(all_surfaces)
 
@@ -214,16 +216,19 @@ class SurfacePlannerNode():
 
         # ROS publishers and subscribers
         if self.plane_seg:
-            self.hull_marker_array_sub = rospy.Subscriber(
-                self._plane_seg_topic, MarkerArray, self.hull_marker_array_callback, queue_size=10)
-        self.footstep_manager_sub = rospy.Subscriber(
-            self._footstep_manager_topic, GaitStatusOnNewPhase, self.footstep_manager_callback, queue_size=10)
+            self.hull_marker_array_sub = rospy.Subscriber(self._plane_seg_topic,
+                                                          MarkerArray,
+                                                          self.hull_marker_array_callback,
+                                                          queue_size=10)
+        self.footstep_manager_sub = rospy.Subscriber(self._footstep_manager_topic,
+                                                     GaitStatusOnNewPhase,
+                                                     self.footstep_manager_callback,
+                                                     queue_size=10)
         self.surface_planner_pub = rospy.Publisher(self._surface_planner_topic, SetSurfaces, queue_size=10)
         self.cmd_vel_sub = rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_callback, queue_size=1)
 
         # Service to clear the surfaces under a certain height.
-        self._clearmap_srv = rospy.Service("walkgen/clearmap", Clearmap,
-                                                self.clearmapService)
+        self._clearmap_srv = rospy.Service("walkgen/clearmap", Clearmap, self.clearmapService)
 
         # ROS timer
         self.timer = rospy.Timer(rospy.Duration(0.005), self.timer_callback)
@@ -247,7 +252,7 @@ class SurfacePlannerNode():
         self.new_surfaces = True
         self.first_set_surfaces = True
         if self._visualization:
-            surfaces = [np.array(value).T for key,value in self.surfaces_processed.items()]
+            surfaces = [np.array(value).T for key, value in self.surfaces_processed.items()]
             msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
             self.marker_array_pub.publish(msg)
 
@@ -281,8 +286,8 @@ class SurfacePlannerNode():
             if self.use_drift_compensation:
                 try:
                     self._mMo.translation[:], (self._rot.x, self._rot.y, self._rot.z,
-                                                self._rot.w) = self._tf_listener.lookupTransform(
-                                                    self.world_frame, self.odom_frame, rospy.Time())
+                                               self._rot.w) = self._tf_listener.lookupTransform(
+                                                   self.world_frame, self.odom_frame, rospy.Time())
                     self._mMo.rotation = self._rot.toRotationMatrix()
                 except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                     raise ArithmeticError("Problem with tf transform")
@@ -300,29 +305,34 @@ class SurfacePlannerNode():
             if self.new_surfaces:
                 self.surface_planner.set_surfaces(self.surfaces_processed)  # Update surfaces
                 self.new_surfaces = False
-            selected_surfaces = self.surface_planner.run(self.q_filter, self.gait,self.gait_timings, self.cmd_vel, self.footsteps)
+            selected_surfaces = self.surface_planner.run(self.q_filter, self.gait, self.gait_timings, self.cmd_vel,
+                                                         self.footsteps)
 
             if self._RECORDING:
                 self._logger.update_logger(self.surface_planner.get_profiler())
                 self._logger.write_data()
                 # Reset processing
                 self._logger.reset_data()
-            
+
             if self.surface_planner.pb_data.success:
                 t1 = clock()
                 print("Run function took [ms] : ", 1000 * (t1 - t0))
                 if self._visualization:
                     t0 = clock()
                     # Publish world config
-                    msg = self.world_visualization.generate_config(self.surface_planner.configs, lifetime = self.surface_planner._step_duration, frame_id=self.world_frame)
+                    msg = self.world_visualization.generate_config(self.surface_planner.configs,
+                                                                   lifetime=self.surface_planner._step_duration,
+                                                                   frame_id=self.world_frame)
                     self.marker_array_pub.publish(msg)
 
                     # Publish world footsteps
-                    msg = self.world_visualization.generate_footsteps(self.surface_planner.pb_data.all_feet_pos, lifetime = self.surface_planner._step_duration, frame_id=self.world_frame)
+                    msg = self.world_visualization.generate_footsteps(self.surface_planner.pb_data.all_feet_pos,
+                                                                      lifetime=self.surface_planner._step_duration,
+                                                                      frame_id=self.world_frame)
                     self.marker_array_pub.publish(msg)
 
                     # Publish world surfaces
-                    surfaces = [np.array(value).T for key,value in self.surface_planner.all_surfaces.items()]
+                    surfaces = [np.array(value).T for key, value in self.surface_planner.all_surfaces.items()]
                     msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
                     self.marker_array_pub.publish(msg)
 
@@ -340,7 +350,7 @@ class SurfacePlannerNode():
 
             # Turn off planner
             self.planner_switch = False
-    
+
     def set_initial_configuration(self):
         """Set the initial configuration in world frame to the server param. Usefull for SL1M to be restarted on the fly.
         Set initial height of the ground. 
@@ -374,15 +384,15 @@ class SurfacePlannerNode():
                 for name in self.feet_3d_names:
                     frameId = self._model.getFrameId(name)
                     h += self._data.oMf[frameId].translation[2]
-                height_.append(h/4)
+                height_.append(h / 4)
                 counter_height += 1
                 q0 = q
                 rospy.sleep(0.01)
             # elif counter_height == 0:
             #     rospy.loginfo("Waiting for a new whole body state message.")
             #     # rospy.sleep(1)
-        
+
         print("Setting initial parameters on rosparam server.")
         rospy.set_param(rospy.get_param("~initial_config"), q0[:7].tolist())
-        rospy.set_param(rospy.get_param("~initial_floor_height"), float(np.mean(height_)) )
-        return  q0[:7], np.mean(height_)
+        rospy.set_param(rospy.get_param("~initial_floor_height"), float(np.mean(height_)))
+        return q0[:7], np.mean(height_)

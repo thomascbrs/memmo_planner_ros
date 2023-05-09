@@ -38,13 +38,11 @@ class StepManagerPublisher():
 
     def __init__(self, topic, queue_size=10):
         # Initializing the publisher
-        self._pub = rospy.Publisher(
-            topic, GaitStatusOnNewPhase, queue_size=queue_size)
+        self._pub = rospy.Publisher(topic, GaitStatusOnNewPhase, queue_size=queue_size)
         self._stepmanager_iface = StepManagerInterface()
 
-    def publish(self, t, gait,timings, target_foostep, q_filter):
-        msg = self._stepmanager_iface.writeToMessage(
-            t, gait,timings, target_foostep, q_filter)
+    def publish(self, t, gait, timings, target_foostep, q_filter):
+        msg = self._stepmanager_iface.writeToMessage(t, gait, timings, target_foostep, q_filter)
         self._pub.publish(msg)
 
 
@@ -78,7 +76,7 @@ class StepManagerInterface():
         gait_mat.layout.dim[1].size = 4
         gait_mat.data = np.ravel(gait, order="C").tolist()
         self._msg.gait = gait_mat
-        
+
         # Timings associated with the gait matrix
         gait_timings = Float64MultiArray()
         gait_timings.layout.dim.append(MultiArrayDimension())
@@ -90,7 +88,7 @@ class StepManagerInterface():
         for t in timings:
             gait_timings.data.append(t)
         self._msg.timings = gait_timings
-        
+
         # Target foosteps
         for k in range(4):
             self._msg.foot_pos[k].name = self._contact_names[k]
@@ -119,9 +117,9 @@ class StepManagerInterface():
 
         q_filter = np.zeros(6)
         q_filter[:] = msg.q_filter[:]
-        
+
         i = msg.timings.layout.dim[0].size
         # j = msg.timings.layout.dim[1].size
-        timings = np.reshape(msg.timings.data, ((i,)), order="C")
+        timings = np.reshape(msg.timings.data, ((i, )), order="C")
 
-        return gait,timings, foot_pos, q_filter
+        return gait, timings, foot_pos, q_filter

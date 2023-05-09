@@ -97,8 +97,7 @@ class SurfacePlannerInterface():
                 jv = sf.vertices.layout.dim[1].size
                 L.append(
                     Surface(
-                        np.array(sf.A.data).reshape(
-                            (ia, ja), order="C"), np.array(sf.b),
+                        np.array(sf.A.data).reshape((ia, ja), order="C"), np.array(sf.b),
                         np.array(sf.vertices.data).reshape((iv, jv), order="C")))
             set_surfaces[foot_surfaces.name] = L
 
@@ -119,11 +118,9 @@ class Surface():
                                        [z0, z1, ... , zn]])
         """
         if A.shape[1] != 3:
-            raise ArithmeticError(
-                "Number column of the inequality array should be 3.")
+            raise ArithmeticError("Number column of the inequality array should be 3.")
         if vertices.shape[0] != 3:
-            raise ArithmeticError(
-                "Number of rows of the vertice array should be 3.")
+            raise ArithmeticError("Number of rows of the vertice array should be 3.")
 
         self.A = A
         self.b = b

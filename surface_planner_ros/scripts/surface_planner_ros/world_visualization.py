@@ -49,15 +49,14 @@ class WorldVisualization():
             - frame_id (str): Frame.
         """
         if len(worldPose) != 7:
-            raise ArithmeticError(
-                "worldPose should be size 7 (Position, Orientation)")
+            raise ArithmeticError("worldPose should be size 7 (Position, Orientation)")
         msg = Marker()
         color = [0.7, 0.7, 0.7, 1.]
         self._set_header(msg, id=0, frame_id=frame_id, ns="world", lifetime=0)
-        self._set_pose(msg, [worldPose[0], worldPose[1], worldPose[2]], [
-                       worldPose[3], worldPose[4], worldPose[5], worldPose[6]])
+        self._set_pose(msg, [worldPose[0], worldPose[1], worldPose[2]],
+                       [worldPose[3], worldPose[4], worldPose[5], worldPose[6]])
         self._set_color(msg, color)
-        self._set_scale(msg, 3*[1.])
+        self._set_scale(msg, 3 * [1.])
         msg.type = msg.MESH_RESOURCE
         msg.mesh_resource = "file://" + worldMesh
 
@@ -80,11 +79,10 @@ class WorldVisualization():
         color = [1., 0., 0., 1.]
         for id, vertices in enumerate(surfaces):
             marker = Marker()
-            self._set_header(marker, id=id, frame_id=frame_id,
-                             ns="hull", lifetime=lifetime)
+            self._set_header(marker, id=id, frame_id=frame_id, ns="hull", lifetime=lifetime)
             self._set_pose(marker, [0., 0., 0.], [0., 0., 0., 1.])
             self._set_color(marker, color)
-            self._set_scale(marker, 3*[0.03])
+            self._set_scale(marker, 3 * [0.03])
             marker.type = marker.LINE_STRIP
             marker.action = marker.ADD
             marker.frame_locked = True
@@ -92,7 +90,7 @@ class WorldVisualization():
             # Add points [P0,P1,P1,P2...]
             for k in range(vertices.shape[1] - 1):
                 marker.points.append(self._point(vertices[:, k]))
-                marker.points.append(self._point(vertices[:, k+1]))
+                marker.points.append(self._point(vertices[:, k + 1]))
 
             # Add end line
             marker.points.append(self._point(vertices[:, 0]))
@@ -112,19 +110,16 @@ class WorldVisualization():
             - frame_id (str): Frame.
         """
         msg = MarkerArray()
-        color = [[1., 0., 0., 1.], [0., 0., 1., 1.],
-                 [0., 1., 0., 1.], [0., 1., 1., 1.]]
+        color = [[1., 0., 0., 1.], [0., 0., 1., 1.], [0., 1., 0., 1.], [0., 1., 1., 1.]]
         counter = 0
         for foot_id, all_foot_pos in enumerate(all_feet_pos):
             for foot_pos in all_foot_pos:
                 if foot_pos is not None:
                     marker_x = Marker()
-                    self._set_header(
-                        marker_x, id=counter, frame_id=frame_id, ns="fsteps", lifetime=lifetime)
-                    self._set_pose(marker_x, [foot_pos[0], foot_pos[1], foot_pos[2]], [
-                                   0., 0., 0., 1.])
+                    self._set_header(marker_x, id=counter, frame_id=frame_id, ns="fsteps", lifetime=lifetime)
+                    self._set_pose(marker_x, [foot_pos[0], foot_pos[1], foot_pos[2]], [0., 0., 0., 1.])
                     self._set_color(marker_x, color[foot_id])
-                    self._set_scale(marker_x, 3*[0.06])
+                    self._set_scale(marker_x, 3 * [0.06])
                     marker_x.type = marker_x.SPHERE
                     marker_x.action = marker_x.ADD
                     marker_x.frame_locked = True
@@ -142,14 +137,13 @@ class WorldVisualization():
             - frame_id (str): Frame.
         """
         msg = MarkerArray()
-        rpy = np.array([0, 0, np.pi/2])
+        rpy = np.array([0, 0, np.pi / 2])
         mat_y = pin.rpy.rpyToMatrix(rpy)
         for id, config in enumerate(configs):
             marker_x = Marker()
             color = [1., 0., 0., 1.]
             pose = np.array(config)
-            self._set_header(marker_x, id=id, frame_id=frame_id,
-                             ns="arrow_x", lifetime=lifetime)
+            self._set_header(marker_x, id=id, frame_id=frame_id, ns="arrow_x", lifetime=lifetime)
             self._set_pose(marker_x, pose[:3], pose[3:])
             self._set_color(marker_x, color)
             self._set_scale(marker_x, [0.1, 0.01, 0.01])
@@ -160,10 +154,8 @@ class WorldVisualization():
 
             marker_y = Marker()
             color = [0., 1., 0., 1.]
-            quat = pin.Quaternion(
-                np.dot(pin.Quaternion(config[3:]).toRotationMatrix(), mat_y ))
-            self._set_header(marker_y, id=id+50, frame_id=frame_id,
-                             ns="arrow_x", lifetime=lifetime)
+            quat = pin.Quaternion(np.dot(pin.Quaternion(config[3:]).toRotationMatrix(), mat_y))
+            self._set_header(marker_y, id=id + 50, frame_id=frame_id, ns="arrow_x", lifetime=lifetime)
             self._set_pose(marker_y, pose[:3], quat.coeffs())
             self._set_color(marker_y, color)
             self._set_scale(marker_y, [0.1, 0.01, 0.01])
