@@ -39,7 +39,7 @@ from geometry_msgs.msg import Twist
 import rospy
 import tf
 from visualization_msgs.msg import Marker, MarkerArray
-from whole_body_state_subscriber_py import WholeBodyStateSubscriber
+from crocoddyl_ros import WholeBodyStateRosSubscriber
 
 from footstep_msgs.msg import GaitStatusOnNewPhase, SetSurfaces
 from footstep_msgs.srv import Clearmap
@@ -90,7 +90,8 @@ class SurfacePlannerNode():
         if len(locked_joint_ids) > 0:
             self._model = pinocchio.buildReducedModel(self._model, locked_joint_ids, pinocchio.neutral(self._model))
         self._data = self._model.createData()
-        self._ws_sub = WholeBodyStateSubscriber(self._model, robot_state_topic, frame_id=self.odom_frame)
+        # self._ws_sub = WholeBodyStateSubscriber(self._model, robot_state_topic, frame_id=self.odom_frame)
+        self._ws_sub = WholeBodyStateRosSubscriber(self._model, robot_state_topic, frame=self.odom_frame)
         self._tf_listener = tf.TransformListener()
         self._rot = pinocchio.Quaternion(np.array([0., 0., 0., 1.]))
         self._mMo = pinocchio.SE3(self._rot, np.zeros(3))
@@ -139,12 +140,15 @@ class SurfacePlannerNode():
         self.params_surface_planner.N_phase_return = rospy.get_param("~N_phase_return")
         self.params_surface_planner.horizon = rospy.get_param("~horizon")
         self.params_surface_planner.com = rospy.get_param("~com")
+        self.params_surface_planner.contact_names = self.feet_3d_names
+        self.params_surface_planner.shoulder_offsets = rospy.get_param("~shoulder_offsets")
         # Heightmap parameters
         self.params_surface_planner.fitsize_x = rospy.get_param("~fitsize_x")
         self.params_surface_planner.fitsize_y = rospy.get_param("~fitsize_y")
         self.params_surface_planner.fitlength = rospy.get_param("~fitlength")
         self.params_surface_planner.recompute_slope = rospy.get_param("~recompute_slope")
         self.surface_planner = SurfacePlanner(self.params_surface_planner, RECORDING=self._RECORDING)
+
 
         if not self.plane_seg:
             self.first_set_surfaces = True  # Always available using plane_seg
@@ -182,17 +186,18 @@ class SurfacePlannerNode():
                 worldPose = self._q
                 worldPose[2] = initial_height
 
-                # rospy.sleep(1.)  # Not working otherwise
+                rospy.sleep(1.)  # Not working otherwise
 
                 msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self.world_frame)
-                # if self.params_surface_processing.extract_mehtodId == 0 : # Publish only when using 1 single stl file.
-                #     self.marker_pub.publish(msg)
-                #     print("PUBLISHED")
+                if self.params_surface_processing.extract_mehtodId == 0 : # Publish only when using 1 single stl file.
+                    self.marker_pub.publish(msg)
+                    print("World published.")
 
                 surfaces = [np.array(value).T for value in all_surfaces.values()]
                 msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
                 self.marker_array_pub.publish(msg)
 
+        print("Visualization loop finished.")
         if not self.plane_seg:
             self.surface_planner.set_surfaces(all_surfaces)
 
@@ -280,7 +285,7 @@ class SurfacePlannerNode():
 
     def timer_callback(self, event):
         if self.planner_switch and self.first_set_surfaces:
-            t_init, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
+            self._t0, q, v, tau, _, _, f, _ = self._ws_sub.get_state()
 
             # Update the drift between the odom and world frames
             if self.use_drift_compensation:
@@ -290,8 +295,10 @@ class SurfacePlannerNode():
                                                    self.world_frame, self.odom_frame, rospy.Time())
                     self._mMo.rotation = self._rot.toRotationMatrix()
                 except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                    raise ArithmeticError("Problem with tf transform")
-
+                    if self._isSetup == False:
+                        return
+                    else:
+                        pass
             # Map the current state from odom to world frame
             self._oMb.translation[:] = q[:3]
             self._rot.x, self._rot.y, self._rot.z, self._rot.w = q[3:7]
@@ -360,8 +367,8 @@ class SurfacePlannerNode():
         height_ = []
         q0 = None
         while not rospy.is_shutdown() and counter_height < 10:
-            if self._ws_sub.has_new_whole_body_state_message():
-                t0, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
+            if self._ws_sub.has_new_msg():
+                self._t0, q, v, tau, _, _, f, _ = self._ws_sub.get_state()
 
                 # Update the drift between the odom and world frames
                 if self.use_drift_compensation:
@@ -371,7 +378,10 @@ class SurfacePlannerNode():
                                                        self.world_frame, self.odom_frame, rospy.Time())
                         self._mMo.rotation = self._rot.toRotationMatrix()
                     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                        pass
+                        if self._isSetup == False:
+                            continue
+                        else:
+                            pass
                 # Map the current state from odom to world frame
                 self._oMb.translation[:] = q[:3]
                 self._rot.x, self._rot.y, self._rot.z, self._rot.w = q[3:7]
