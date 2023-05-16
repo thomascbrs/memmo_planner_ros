@@ -33,6 +33,8 @@ surface_planner:
   margin_outer: 0.06  # Margin in [m] ouside the convex surfaces (collision avoidance)
   n_points: 8  # Maximum Number of points for for each convex surface
 
+  offset_z: -0.04 # Offset on the z-axis.
+
   # Method to remove the overlapping between surfaces :
   # 1. Run the list of surfaces starting with the lowest.
   # 2. Decomposes the lowest surface in set of convex ones by removing the upper surfaces that overlap it. (Tesselation algorithm).

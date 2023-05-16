@@ -90,6 +90,7 @@ private:
   void print_joyop();
   void update_joystick_continuous(const sensor_msgs::Joy::ConstPtr &msg);
   void update_joystick_step(const sensor_msgs::Joy::ConstPtr &msg);
+  void update_joystick_discrete(const sensor_msgs::Joy::ConstPtr &msg); 
   // TODO(JaehyunShim): print_vel should be curr vel? or ref vel?
   void send_cmd_vel(double vel_lin_x, double vel_lin_y, double vel_lin_z,
                     double vel_ang_x, double vel_ang_y, double vel_ang_z);

@@ -129,6 +129,7 @@ class SurfacePlannerNode():
         self.params_surface_processing.margin_outer = rospy.get_param("~margin_outer")
         self.params_surface_processing.path = rospy.get_param("~path")
         self.params_surface_processing.stl = rospy.get_param("~stl")
+        self.params_surface_processing.offset_z = rospy.get_param("~offset_z")
         self.plane_seg = self.params_surface_processing.plane_seg  # Use data from plane_seg.
         self.surface_processing = SurfaceProcessing(initial_height=initial_height,
                                                     params=self.params_surface_processing)
@@ -155,14 +156,15 @@ class SurfacePlannerNode():
             # Extract surfaces from URDF file.
             # surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
             translation = np.zeros(3)
-            translation[:2] = self._q[:2]
+            # translation[:2] = self._q[:2]
             translation[-1] = initial_height
-            R_ = pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
+            # R_ = pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
+            R_ = np.identity(3)
             if self.params_surface_processing.extract_mehtodId == 0:
                 # Single file .stl
                 surface_detector = SurfaceDetector(
                     self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation,
-                    self.params_surface_processing.margin_inner, "environment_")
+                    self.params_surface_processing.margin_inner, "environment_", self.params_surface_processing.offset_z)
             else:
                 # Folder containing multiple .stl files.
                 surface_detector = SurfaceLoader(
