@@ -26,10 +26,10 @@ surface_planner:
   # Extract the scene as a single .stl file to post-process with hpp-affordance --> extract_methodId=0
   # Extract the scene as a multiple .stl files --> extract_methodId=1
   extract_methodId: 0
-  path: /home/thomas_cbrs/install/share/walkgen-environment-data/environments # Path to .stl file.
+  path: /home/b1/install/share/walkgen-environment-data/environments # Path to .stl file.
   stl: /meshes/lab_scene.stl # File name. If method == 1 : folder name.
 
-  margin_inner: 0.04  # Margin in [m] inside the convex surfaces (sfae footstep planinng)
+  margin_inner: 0.05  # Margin in [m] inside the convex surfaces (sfae footstep planinng)
   margin_outer: 0.06  # Margin in [m] ouside the convex surfaces (collision avoidance)
   n_points: 8  # Maximum Number of points for for each convex surface
 
@@ -46,6 +46,8 @@ surface_planner:
   method_id: 1
   poly_size: 10  # Maximum size of the polygon for the convex decomposition.
   min_area: 0.03  # Area under which the remaining surfaces is delated.
+
+  offset_z: 0. # Offset on the z-axis.
 
   ####################
   ### Surface planner parameters, using SurfacePlannerParams()

@@ -63,6 +63,7 @@ MemmoTeleopJoystick::MemmoTeleopJoystick() : nh_(""), private_nh_("~") {
   // Method to control the velocity
   // 0 --> Continusous value from joystick publishing
   // 1 --> Increase step by step the velocity
+  // 2 --> Increase step by step with discrete buttons
   private_nh_.param<int>(nodeName + "/method_id", method_id_, 0);
 
   // Filtering parameters
@@ -118,6 +119,9 @@ void MemmoTeleopJoystick::joy_callback(const sensor_msgs::Joy::ConstPtr &msg) {
   if (method_id_ == 1) {
     update_joystick_step(msg);
   }
+  if (method_id_ == 2) {
+    update_joystick_discrete(msg);
+  }
   if (!first_joy_received_) {
     first_joy_received_ = true;
   }
@@ -170,6 +174,28 @@ void MemmoTeleopJoystick::update_joystick_continuous(
   }
   if (msg->axes.at(2) <= -dead_zone_yaw_) { // Move in -yaw direction
     vel_joystick_[5] = msg->axes.at(2) * vel_yaw_limit_;
+  }
+}
+
+void MemmoTeleopJoystick::update_joystick_discrete(
+    const sensor_msgs::Joy::ConstPtr &msg) {
+  if (msg->axes.at(7) > 0 && vel_joystick_[0] < vel_x_limit_ ) { // Move in + x direction
+    vel_joystick_[0] += vel_x_step_size_;
+  }
+  if (msg->axes.at(7) < 0 && vel_joystick_[0] > -vel_x_limit_ ) { // Move in - x direction
+    vel_joystick_[0] -= vel_x_step_size_;
+  }
+  if (msg->axes.at(6) > 0 && vel_joystick_[1] < vel_y_limit_ ) { // Move in + y direction
+    vel_joystick_[1] += vel_y_step_size_;
+  }
+  if (msg->axes.at(6) < 0 && vel_joystick_[1] > -vel_y_limit_ ) { // Move in - y direction
+    vel_joystick_[1] -= vel_y_step_size_;
+  }
+  if (msg->buttons.at(4) > 0 && vel_joystick_[5] < vel_yaw_limit_ ) { // Move in + yaw direction
+    vel_joystick_[5] += vel_yaw_step_size_;
+  }
+  if (msg->buttons.at(5) > 0 && vel_joystick_[5] > -vel_yaw_limit_ ) { // Move in - y direction
+    vel_joystick_[5] -= vel_yaw_step_size_;
   }
 }
 
