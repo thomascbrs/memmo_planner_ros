@@ -47,6 +47,8 @@ from surface_planner_ros.step_manager_interface import StepManagerInterface
 from surface_planner_ros.surface_planner_interface import SurfacePlannerInterface
 from surface_planner_ros.world_visualization import WorldVisualization
 from surface_planner_ros.Logger import Logger
+from surface_planner_ros.elevation_map_interface import ElevationMapInterface, DECOMPO_ALGO
+
 from walkgen_surface_planner import SurfacePlanner
 from walkgen_surface_planner.params import SurfacePlannerParams
 from walkgen_surface_processing.surface_detector import SurfaceDetector
@@ -227,6 +229,12 @@ class SurfacePlannerNode():
                                                           MarkerArray,
                                                           self.hull_marker_array_callback,
                                                           queue_size=10)
+            
+            self._elevation_map_topic = "/convex_plane_decomposition_ros/planar_terrain"
+            self.elevation_map_sub = rospy.Subscriber(self._elevation_map_topic,
+                                                          MarkerArray,
+                                                          self.elevation_map_callback,
+                                                          queue_size=10)
         self.footstep_manager_sub = rospy.Subscriber(self._footstep_manager_topic,
                                                      GaitStatusOnNewPhase,
                                                      self.footstep_manager_callback,
@@ -256,6 +264,22 @@ class SurfacePlannerNode():
             self._logger._profiler["timing_processing"].append(t1 - t0)
             self._logger._profiler["processing_number"].append(len(self.surfaces_processed.values()))
         print("Process hull marker [ms] : ", 1000 * (t1 - t0))
+        self.new_surfaces = True
+        self.first_set_surfaces = True
+        if self._visualization:
+            surfaces = [np.array(value).T for key, value in self.surfaces_processed.items()]
+            msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
+            self.marker_array_pub.publish(msg)
+    
+    def elevation_map_callback(self, msg):
+        """ Filter and store incoming planes which are non-convex coming
+        from elevation_map_cupy.
+        """
+        t0 =clock()
+        self.surfaces_processed = self.map_interface.process(msg)
+        t1 = clock()
+        print("Process elevation map planes [ms] : ", 1000*(t1 - t0))
+
         self.new_surfaces = True
         self.first_set_surfaces = True
         if self._visualization:

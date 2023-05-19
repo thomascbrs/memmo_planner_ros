@@ -82,7 +82,7 @@ class WorldVisualization():
             self._set_header(marker, id=id, frame_id=frame_id, ns="hull", lifetime=lifetime)
             self._set_pose(marker, [0., 0., 0.], [0., 0., 0., 1.])
             self._set_color(marker, color)
-            self._set_scale(marker, 3 * [0.03])
+            self._set_scale(marker, 3 * [0.01])
             marker.type = marker.LINE_STRIP
             marker.action = marker.ADD
             marker.frame_locked = True
