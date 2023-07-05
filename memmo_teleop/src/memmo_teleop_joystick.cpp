@@ -84,6 +84,7 @@ MemmoTeleopJoystick::MemmoTeleopJoystick() : nh_(""), private_nh_("~") {
   // Init ROS publisher and subscriber
   // TODO(JaehyunShim): Need more consideration on queue size
   cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("cmd_vel", 10);
+  cmd_gait_pub_ = nh_.advertise<std_msgs::Int32>("cmd_gait", 10);
   joy_sub_ = nh_.subscribe("joy", 10, &MemmoTeleopJoystick::joy_callback, this);
 
   // Create a ROS timer for publishing cmd velocity
@@ -96,6 +97,13 @@ MemmoTeleopJoystick::MemmoTeleopJoystick() : nh_(""), private_nh_("~") {
   vel_joystick_ = Eigen::Matrix<double, 6, 1>::Zero();
   vel_filtered_ = Eigen::Matrix<double, 6, 1>::Zero();
   first_joy_received_ = false;
+
+  // Commanded gait :
+  // --> [0] initial gait
+  // --> [1] Walk
+  // --> [2] Trot
+  cmd_gait_ = 0;
+  msg_.data = cmd_gait_;
 }
 
 MemmoTeleopJoystick::~MemmoTeleopJoystick() {
@@ -108,6 +116,7 @@ void MemmoTeleopJoystick::timer_callback() {
     vel_filtered_ = beta_ * vel_filtered_ + (1 - beta_) * vel_joystick_;
     send_cmd_vel(vel_filtered_[0], vel_filtered_[1], vel_filtered_[2],
                  vel_filtered_[3], vel_filtered_[4], vel_filtered_[5]);
+    send_cmd_gait(cmd_gait_);
   }
 }
 
@@ -197,6 +206,16 @@ void MemmoTeleopJoystick::update_joystick_discrete(
   if (msg->buttons.at(5) > 0 && vel_joystick_[5] > -vel_yaw_limit_ ) { // Move in - y direction
     vel_joystick_[5] -= vel_yaw_step_size_;
   }
+  update_joystick_gait(msg);
+}
+
+void MemmoTeleopJoystick::update_joystick_gait(const sensor_msgs::Joy::ConstPtr &msg) {
+  if (msg->buttons.at(0) > 0 ) { // A button --> Walk
+    cmd_gait_ = 1;
+  }
+  if (msg->buttons.at(2) > 0 ) { // X button --> Trot
+    cmd_gait_ = 2;
+  }
 }
 
 void MemmoTeleopJoystick::print_joyop() {
@@ -222,6 +241,19 @@ void MemmoTeleopJoystick::send_cmd_vel(double vel_lin_x, double vel_lin_y,
   ROS_INFO("\nvel_lin_x: %.4lf\n", cmd_vel_msg.linear.x);
   ROS_INFO("vel_lin_y: %.4lf\n", cmd_vel_msg.linear.y);
   ROS_INFO("vel_lin_yaw: %.4lf\n", cmd_vel_msg.angular.z);
+}
+
+void MemmoTeleopJoystick::send_cmd_gait(const int cmd) {
+  msg_.data = cmd;
+  cmd_gait_pub_.publish(msg_);
+  // Check the value of cmd
+  if (cmd == 2) {
+    ROS_INFO("Next gait: trotting");
+  } else if (cmd == 1) {
+    ROS_INFO("Next gait: walking");
+  } else {
+    ROS_INFO("Next gait: initial gait");
+  }
 }
 
 double MemmoTeleopJoystick::enforce_vel_limit(double vel, double limit) {
