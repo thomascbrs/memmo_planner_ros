@@ -35,6 +35,9 @@ from surface_planner_ros.surface_planner_node import SurfacePlannerNode
 def main(args=None):
     # Disable garbage collection for better timings. Note, this may lead to memory leaks (not observed for 20+ mins of operation)
     import gc
+    import signal
+    import threading
+
     gc.disable()
 
     rospy.init_node('surface_planner')
@@ -44,6 +47,10 @@ def main(args=None):
     def sig_int_handler(signal, frame):
         raise KeyboardInterrupt
 
+    # Spawn the MPC thread
+    signal.signal(signal.SIGINT, sig_int_handler)
+    t = threading.Thread(target=surface_planner_node)
+    t.start()
     rospy.spin()
 
 

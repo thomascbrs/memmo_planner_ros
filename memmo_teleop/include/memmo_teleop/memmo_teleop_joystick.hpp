@@ -33,17 +33,22 @@
 #include <math.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Joy.h>
+#include <std_msgs/Int32.h>
 
 namespace memmo_teleop {
 class MemmoTeleopJoystick {
-public:
+ public:
   MemmoTeleopJoystick();
   ~MemmoTeleopJoystick();
 
-private:
+ private:
   // Node Handle
   ros::NodeHandle nh_;
   ros::NodeHandle private_nh_;
+
+  // Gait command
+  int cmd_gait_;
+  std_msgs::Int32 msg_;
 
   // Linear Velocity
   double vel_x_limit_;
@@ -62,7 +67,7 @@ private:
   double vel_yaw_step_size_;
 
   // Filtering parameters
-  double cutoff_frequency_; // [Hz]
+  double cutoff_frequency_;  // [Hz]
   double beta_;
   double dead_zone_x_;
   double dead_zone_y_;
@@ -75,12 +80,13 @@ private:
   Eigen::Matrix<double, 6, 1> vel_filtered_;
 
   // Publishing rate
-  double publishing_rate_; // [Hz]
+  double publishing_rate_;  // [Hz]
   ros::Timer timer_publisher_;
   void timer_callback();
 
   // ROS Publisher
   ros::Publisher cmd_vel_pub_;
+  ros::Publisher cmd_gait_pub_;
 
   // ROS Subscriber
   ros::Subscriber joy_sub_;
@@ -90,10 +96,13 @@ private:
   void print_joyop();
   void update_joystick_continuous(const sensor_msgs::Joy::ConstPtr &msg);
   void update_joystick_step(const sensor_msgs::Joy::ConstPtr &msg);
+  void update_joystick_discrete(const sensor_msgs::Joy::ConstPtr &msg);
+  void update_joystick_gait(const sensor_msgs::Joy::ConstPtr &msg);
   // TODO(JaehyunShim): print_vel should be curr vel? or ref vel?
-  void send_cmd_vel(double vel_lin_x, double vel_lin_y, double vel_lin_z,
-                    double vel_ang_x, double vel_ang_y, double vel_ang_z);
+  void send_cmd_vel(double vel_lin_x, double vel_lin_y, double vel_lin_z, double vel_ang_x, double vel_ang_y,
+                    double vel_ang_z);
+  void send_cmd_gait(const int cmd);
   double enforce_vel_limit(double vel, double limit);
 };
-} // namespace memmo_teleop
-#endif // MEMMO_TELEOP__MEMMO_TELEOP_JOYSTICK_HPP_
+}  // namespace memmo_teleop
+#endif  // MEMMO_TELEOP__MEMMO_TELEOP_JOYSTICK_HPP_

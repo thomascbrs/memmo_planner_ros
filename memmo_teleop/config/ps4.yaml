@@ -2,10 +2,12 @@ memmo_teleop:
   # Rewrite this chunk... Simplify using struct
   # Linear velocity [m.s-1]
   vel_x_limit: 0.3
-  vel_x_step_size: 0.005
+  # vel_x_step_size: 0.005  # Method 1
+  vel_x_step_size: 0.01  # Method 2
 
   vel_y_limit: 0.3
-  vel_y_step_size: 0.005
+  # vel_y_step_size: 0.005 # Method 1
+  vel_y_step_size: 0.01 # Method 2
 
   vel_z_limit: 0.1
   vel_z_step_size: 0.01
@@ -18,12 +20,13 @@ memmo_teleop:
   vel_pitch_step_size: 0.01
 
   vel_yaw_limit: 0.4
-  vel_yaw_step_size: 0.01
+  # vel_yaw_step_size: 0.01 # Method 1
+  vel_yaw_step_size: 0.04 # Method 2
 
   # Method to control the velocity
   # 0 --> Continusous value from joystick publishing
   # 1 --> Increase step by step the velocity
-  method_id: 1
+  method_id: 2
 
   # Filtering parameters
   cutoff_frequency: 5 # [Hz] 0.04 for method 1

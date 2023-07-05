@@ -35,7 +35,6 @@ import rospy
 
 
 class StepManagerPublisher():
-
     def __init__(self, topic, queue_size=10):
         # Initializing the publisher
         self._pub = rospy.Publisher(topic, GaitStatusOnNewPhase, queue_size=queue_size)
@@ -47,7 +46,6 @@ class StepManagerPublisher():
 
 
 class StepManagerInterface():
-
     def __init__(self):
         self._msg = GaitStatusOnNewPhase()
         # Order of the feet in the surface planner.

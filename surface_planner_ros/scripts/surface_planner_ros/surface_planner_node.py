@@ -39,7 +39,7 @@ from geometry_msgs.msg import Twist
 import rospy
 import tf
 from visualization_msgs.msg import Marker, MarkerArray
-from whole_body_state_subscriber_py import WholeBodyStateSubscriber
+from crocoddyl_ros import WholeBodyStateRosSubscriber
 
 from footstep_msgs.msg import GaitStatusOnNewPhase, SetSurfaces
 from footstep_msgs.srv import Clearmap
@@ -47,6 +47,8 @@ from surface_planner_ros.step_manager_interface import StepManagerInterface
 from surface_planner_ros.surface_planner_interface import SurfacePlannerInterface
 from surface_planner_ros.world_visualization import WorldVisualization
 from surface_planner_ros.Logger import Logger
+from surface_planner_ros.elevation_map_interface import ElevationMapInterface, DECOMPO_ALGO
+
 from walkgen_surface_planner import SurfacePlanner
 from walkgen_surface_planner.params import SurfacePlannerParams
 from walkgen_surface_processing.surface_detector import SurfaceDetector
@@ -56,7 +58,6 @@ from walkgen_surface_processing.params import SurfaceProcessingParams
 
 
 class SurfacePlannerNode():
-
     def __init__(self):
 
         # Define frames
@@ -90,7 +91,8 @@ class SurfacePlannerNode():
         if len(locked_joint_ids) > 0:
             self._model = pinocchio.buildReducedModel(self._model, locked_joint_ids, pinocchio.neutral(self._model))
         self._data = self._model.createData()
-        self._ws_sub = WholeBodyStateSubscriber(self._model, robot_state_topic, frame_id=self.odom_frame)
+        # self._ws_sub = WholeBodyStateSubscriber(self._model, robot_state_topic, frame_id=self.odom_frame)
+        self._ws_sub = WholeBodyStateRosSubscriber(self._model, robot_state_topic, frame=self.odom_frame)
         self._tf_listener = tf.TransformListener()
         self._rot = pinocchio.Quaternion(np.array([0., 0., 0., 1.]))
         self._mMo = pinocchio.SE3(self._rot, np.zeros(3))
@@ -128,6 +130,7 @@ class SurfacePlannerNode():
         self.params_surface_processing.margin_outer = rospy.get_param("~margin_outer")
         self.params_surface_processing.path = rospy.get_param("~path")
         self.params_surface_processing.stl = rospy.get_param("~stl")
+        self.params_surface_processing.offset_z = rospy.get_param("~offset_z")
         self.plane_seg = self.params_surface_processing.plane_seg  # Use data from plane_seg.
         self.surface_processing = SurfaceProcessing(initial_height=initial_height,
                                                     params=self.params_surface_processing)
@@ -139,6 +142,8 @@ class SurfacePlannerNode():
         self.params_surface_planner.N_phase_return = rospy.get_param("~N_phase_return")
         self.params_surface_planner.horizon = rospy.get_param("~horizon")
         self.params_surface_planner.com = rospy.get_param("~com")
+        self.params_surface_planner.contact_names = self.feet_3d_names
+        self.params_surface_planner.shoulder_offsets = rospy.get_param("~shoulder_offsets")
         # Heightmap parameters
         self.params_surface_planner.fitsize_x = rospy.get_param("~fitsize_x")
         self.params_surface_planner.fitsize_y = rospy.get_param("~fitsize_y")
@@ -151,14 +156,16 @@ class SurfacePlannerNode():
             # Extract surfaces from URDF file.
             # surface_detector = SurfaceDetector(self._params.path + self._params.urdf, self._params.margin, q0=q0[:7], initial_height=initial_height)
             translation = np.zeros(3)
-            translation[:2] = self._q[:2]
+            # translation[:2] = self._q[:2]
             translation[-1] = initial_height
-            R_ = pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
+            # R_ = pinocchio.Quaternion(self._q[3:]).toRotationMatrix()
+            R_ = np.identity(3)
             if self.params_surface_processing.extract_mehtodId == 0:
                 # Single file .stl
                 surface_detector = SurfaceDetector(
                     self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation,
-                    self.params_surface_processing.margin_inner, "environment_")
+                    self.params_surface_processing.margin_inner, "environment_",
+                    self.params_surface_processing.offset_z)
             else:
                 # Folder containing multiple .stl files.
                 surface_detector = SurfaceLoader(
@@ -169,10 +176,11 @@ class SurfacePlannerNode():
         # Visualization tools
         if self._visualization:
             self.world_visualization = WorldVisualization()
-            self.marker_pub = rospy.Publisher("surface_planner/visualization_marker", Marker, queue_size=10)
-            self.marker_array_pub = rospy.Publisher("surface_planner/visualization_marker_array",
-                                                    MarkerArray,
-                                                    queue_size=10)
+            # Visualisation
+            visuMkArray_topic = rospy.get_param("~visualisation_mkarray_topic")
+            visuMk_topic = rospy.get_param("~visualisation_mk_topic")
+            self.marker_pub = rospy.Publisher(visuMk_topic, Marker, queue_size=10)
+            self.marker_array_pub = rospy.Publisher(visuMkArray_topic, MarkerArray, queue_size=10)
             if not self.plane_seg:  # Publish URDF environment
                 print("Publishing world...")
                 # self.world_visualization = WalkgenVisualizationPublisher()
@@ -182,17 +190,18 @@ class SurfacePlannerNode():
                 worldPose = self._q
                 worldPose[2] = initial_height
 
-                # rospy.sleep(1.)  # Not working otherwise
+                rospy.sleep(1.)  # Not working otherwise
 
                 msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self.world_frame)
-                # if self.params_surface_processing.extract_mehtodId == 0 : # Publish only when using 1 single stl file.
-                #     self.marker_pub.publish(msg)
-                #     print("PUBLISHED")
+                if self.params_surface_processing.extract_mehtodId == 0:  # Publish only when using 1 single stl file.
+                    self.marker_pub.publish(msg)
+                    print("World published.")
 
                 surfaces = [np.array(value).T for value in all_surfaces.values()]
                 msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
                 self.marker_array_pub.publish(msg)
 
+        print("Visualization loop finished.")
         if not self.plane_seg:
             self.surface_planner.set_surfaces(all_surfaces)
 
@@ -220,6 +229,21 @@ class SurfacePlannerNode():
                                                           MarkerArray,
                                                           self.hull_marker_array_callback,
                                                           queue_size=10)
+
+            from convex_plane_decomposition_msgs.msg import PlanarTerrain
+            # TODO only try to import when activate elevation map type
+
+            self._elevation_map_topic = "/convex_plane_decomposition_ros/planar_terrain"
+            self.elevation_map_sub = rospy.Subscriber(self._elevation_map_topic,
+                                                      PlanarTerrain,
+                                                      self.elevation_map_callback,
+                                                      queue_size=10)
+            # TODO pass this as arguments
+            threshold = 0.001
+            polySize = 10
+            convexHoles = False
+            self.map_interface = ElevationMapInterface(threshold, polySize, DECOMPO_ALGO.Bayazit, convexHoles)
+
         self.footstep_manager_sub = rospy.Subscriber(self._footstep_manager_topic,
                                                      GaitStatusOnNewPhase,
                                                      self.footstep_manager_callback,
@@ -231,7 +255,7 @@ class SurfacePlannerNode():
         self._clearmap_srv = rospy.Service("walkgen/clearmap", Clearmap, self.clearmapService)
 
         # ROS timer
-        self.timer = rospy.Timer(rospy.Duration(0.005), self.timer_callback)
+        self.timer = rospy.Timer(rospy.Duration(0.002), self.timer_callback)
 
     def cmd_vel_callback(self, msg):
         self.cmd_vel[0] = msg.linear.x
@@ -254,6 +278,25 @@ class SurfacePlannerNode():
         if self._visualization:
             surfaces = [np.array(value).T for key, value in self.surfaces_processed.items()]
             msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
+            self.marker_array_pub.publish(msg)
+
+    def elevation_map_callback(self, msg):
+        """ Filter and store incoming planes which are non-convex coming
+        from elevation_map_cupy.
+        """
+        t0 = clock()
+        self.surfaces_processed = self.map_interface.process(msg)
+        t1 = clock()
+        print("Process elevation map planes [ms] : ", 1000 * (t1 - t0))
+
+        self.new_surfaces = True
+        self.first_set_surfaces = True
+        if self._visualization:
+            surfaces = [np.array(value).T for key, value in self.surfaces_processed.items()]
+            msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
+            print("PUBLISHING")
+            # from IPython import embed
+            # embed()
             self.marker_array_pub.publish(msg)
 
     def footstep_manager_callback(self, msg):
@@ -280,7 +323,7 @@ class SurfacePlannerNode():
 
     def timer_callback(self, event):
         if self.planner_switch and self.first_set_surfaces:
-            t_init, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
+            self._t0, q, v, tau, _, _, f, _ = self._ws_sub.get_state()
 
             # Update the drift between the odom and world frames
             if self.use_drift_compensation:
@@ -290,8 +333,10 @@ class SurfacePlannerNode():
                                                    self.world_frame, self.odom_frame, rospy.Time())
                     self._mMo.rotation = self._rot.toRotationMatrix()
                 except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                    raise ArithmeticError("Problem with tf transform")
-
+                    if self._isSetup == False:
+                        return
+                    else:
+                        pass
             # Map the current state from odom to world frame
             self._oMb.translation[:] = q[:3]
             self._rot.x, self._rot.y, self._rot.z, self._rot.w = q[3:7]
@@ -360,8 +405,8 @@ class SurfacePlannerNode():
         height_ = []
         q0 = None
         while not rospy.is_shutdown() and counter_height < 10:
-            if self._ws_sub.has_new_whole_body_state_message():
-                t0, q, v, tau, f = self._ws_sub.get_current_whole_body_state()
+            if self._ws_sub.has_new_msg():
+                self._t0, q, v, tau, _, _, f, _ = self._ws_sub.get_state()
 
                 # Update the drift between the odom and world frames
                 if self.use_drift_compensation:
@@ -371,7 +416,10 @@ class SurfacePlannerNode():
                                                        self.world_frame, self.odom_frame, rospy.Time())
                         self._mMo.rotation = self._rot.toRotationMatrix()
                     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                        pass
+                        if self._isSetup == False:
+                            continue
+                        else:
+                            pass
                 # Map the current state from odom to world frame
                 self._oMb.translation[:] = q[:3]
                 self._rot.x, self._rot.y, self._rot.z, self._rot.w = q[3:7]
