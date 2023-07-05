@@ -35,7 +35,6 @@ from std_msgs.msg import Float64MultiArray, MultiArrayDimension
 
 
 class SurfacePlannerInterface():
-
     def __init__(self):
         self._msg = SetSurfaces()
 
@@ -105,7 +104,6 @@ class SurfacePlannerInterface():
 
 
 class Surface():
-
     def __init__(self, A, b, vertices):
         """Initialize the surface.
 
