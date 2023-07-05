@@ -65,7 +65,6 @@ class DECOMPO_ALGO(Enum):
 class Algorithm():
     """ Common interface for 4 different types of computational geometry algorithms.
     """
-
     def __init__(self, type=DECOMPO_ALGO.Tess2, polySize=10):
         """
         Args :
@@ -192,7 +191,6 @@ class Algorithm():
 
 
 class ElevationMapInterface():
-
     def __init__(self, threshold=0.001, polySize=10, DECOMPO_ALGO=DECOMPO_ALGO.Tess2, convexHoles=False):
         self.tess = Tess2.hxGeomAlgo_Tess2()
         self.snoe_keil = Snoeyink_Keil.hxGeomAlgo_SnoeyinkKeil()

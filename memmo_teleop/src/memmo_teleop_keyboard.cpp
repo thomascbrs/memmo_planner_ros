@@ -91,45 +91,44 @@ void MemmoTeleopKeyboard::run() {
     while (true) {
       char ch = std::getchar();
       switch (ch) {
-      case 'w':
-        lin_vel_x_ref += lin_vel_x_step_size_;
-        break;
+        case 'w':
+          lin_vel_x_ref += lin_vel_x_step_size_;
+          break;
 
-      case 'x':
-        lin_vel_x_ref -= lin_vel_x_step_size_;
-        break;
+        case 'x':
+          lin_vel_x_ref -= lin_vel_x_step_size_;
+          break;
 
-      case 'd':
-        lin_vel_y_ref += lin_vel_y_step_size_;
-        break;
+        case 'd':
+          lin_vel_y_ref += lin_vel_y_step_size_;
+          break;
 
-      case 'a':
-        lin_vel_y_ref -= lin_vel_y_step_size_;
-        break;
+        case 'a':
+          lin_vel_y_ref -= lin_vel_y_step_size_;
+          break;
 
-      case 'q':
-        ang_vel_z_ref += ang_vel_z_step_size_;
-        break;
+        case 'q':
+          ang_vel_z_ref += ang_vel_z_step_size_;
+          break;
 
-      case 'e':
-        ang_vel_z_ref -= ang_vel_z_step_size_;
-        break;
+        case 'e':
+          ang_vel_z_ref -= ang_vel_z_step_size_;
+          break;
 
-      case 's':
-        lin_vel_x_ref = 0.0;
-        lin_vel_y_ref = 0.0;
-        lin_vel_z_ref = 0.0;
-        ang_vel_x_ref = 0.0;
-        ang_vel_y_ref = 0.0;
-        ang_vel_z_ref = 0.0;
-        break;
+        case 's':
+          lin_vel_x_ref = 0.0;
+          lin_vel_y_ref = 0.0;
+          lin_vel_z_ref = 0.0;
+          ang_vel_x_ref = 0.0;
+          ang_vel_y_ref = 0.0;
+          ang_vel_z_ref = 0.0;
+          break;
 
-      default:
-        break;
+        default:
+          break;
       }
 
-      send_cmd_vel(lin_vel_x_ref, lin_vel_y_ref, lin_vel_z_ref, ang_vel_x_ref,
-                   ang_vel_y_ref, ang_vel_z_ref);
+      send_cmd_vel(lin_vel_x_ref, lin_vel_y_ref, lin_vel_z_ref, ang_vel_x_ref, ang_vel_y_ref, ang_vel_z_ref);
 
       // Print keyboard operation every 10 commands
       count += 1;
@@ -173,8 +172,7 @@ void MemmoTeleopKeyboard::print_keyop() {
 // TODO(JaehyunShim): Add smoother
 
 // TODO(JaehyunShim): why has to be reference, not pointer..?
-void MemmoTeleopKeyboard::send_cmd_vel(double vel_lin_x, double vel_lin_y,
-                                       double vel_lin_z, double vel_ang_x,
+void MemmoTeleopKeyboard::send_cmd_vel(double vel_lin_x, double vel_lin_y, double vel_lin_z, double vel_ang_x,
                                        double vel_ang_y, double vel_ang_z) {
   // Enforce velocity limit
   geometry_msgs::Twist cmd_vel_msg;
@@ -201,4 +199,4 @@ double MemmoTeleopKeyboard::enforce_vel_limit(double vel, double limit) {
   }
   return vel;
 }
-} // namespace memmo_teleop
+}  // namespace memmo_teleop

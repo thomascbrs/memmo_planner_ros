@@ -178,11 +178,9 @@ class SurfacePlannerNode():
             self.world_visualization = WorldVisualization()
             # Visualisation
             visuMkArray_topic = rospy.get_param("~visualisation_mkarray_topic")
-            visuMk_topic =  rospy.get_param("~visualisation_mk_topic")
+            visuMk_topic = rospy.get_param("~visualisation_mk_topic")
             self.marker_pub = rospy.Publisher(visuMk_topic, Marker, queue_size=10)
-            self.marker_array_pub = rospy.Publisher(visuMkArray_topic,
-                                                        MarkerArray,
-                                                        queue_size=10)
+            self.marker_array_pub = rospy.Publisher(visuMkArray_topic, MarkerArray, queue_size=10)
             if not self.plane_seg:  # Publish URDF environment
                 print("Publishing world...")
                 # self.world_visualization = WalkgenVisualizationPublisher()
@@ -297,7 +295,7 @@ class SurfacePlannerNode():
             surfaces = [np.array(value).T for key, value in self.surfaces_processed.items()]
             msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
             print("PUBLISHING")
-            # from IPython import embed 
+            # from IPython import embed
             # embed()
             self.marker_array_pub.publish(msg)
 
