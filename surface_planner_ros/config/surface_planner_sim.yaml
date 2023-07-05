@@ -17,12 +17,12 @@ surface_planner:
   # order matters! LF LH RF RH
   # 3d_feet: [LF_FOOT, LH_FOOT, RF_FOOT, RH_FOOT] # ANYmal
   3d_feet: [FL_foot, RL_foot, FR_foot, RR_foot]
-  shoulder_offsets:  [[0.367, 0.2],[-0.367, 0.2],[0.367, -0.2],[-0.367, -0.2]] 
+  shoulder_offsets:  [[0.367, 0.2],[-0.367, 0.2],[0.367, -0.2],[-0.367, -0.2]]
 
   ###################
   ### PlaneSeg parameters for postprocessing, using SurfaceProcessingParams()
-  plane_seg: false
-  
+  plane_seg: true
+
   # Extract the scene as a single .stl file to post-process with hpp-affordance --> extract_methodId=0
   # Extract the scene as a multiple .stl files --> extract_methodId=1
   extract_methodId: 0
@@ -47,13 +47,13 @@ surface_planner:
   poly_size: 10  # Maximum size of the polygon for the convex decomposition.
   min_area: 0.03  # Area under which the remaining surfaces is delated.
 
-  offset_z: 0. # Offset on the z-axis.
+  offset_z: 0.035 # Offset on the z-axis.
 
   ####################
   ### Surface planner parameters, using SurfacePlannerParams()
   # SL1M parameters
   com: false  # Optimize CoM trajectory in SL1M
-  horizon: 8 # MAximum number of optimised fsteps.
+  horizon: 6 # MAximum number of optimised fsteps.
   N_phase_return: 3 # Number of surfaces returned by SL1M for each foot.
   # Heightmap
   fitsize_x: 10  # Number of point on x-axis (base frame) to evaluate the terrain height
@@ -62,7 +62,7 @@ surface_planner:
   recompute_slope: true  # Recompute the slope of the terrain for each contact phase configuration
   # Recording
   recording: false # Record timing in a .txt file
-  folder_path: "/home/thomas_cbrs/devel/tmp/paper_timings/stair_down/timings/" # Folder path for recording 
+  folder_path: "/home/thomas_cbrs/devel/tmp/paper_timings/stair_down/timings/" # Folder path for recording
 
   ####################
   ### Topic to exchange with footstep planner
@@ -71,6 +71,8 @@ surface_planner:
   plane_seg_topic: /plane_seg/hull_marker_array
   initial_config: walkgen/initial_config # Initial configuration.
   initial_floor_height: walkgen/initial_floor_height # Initial floor height.
+  visualisation_mkarray_topic: surface_planner/visualization_marker_array
+  visualisation_mk_topic: surface_planner/visualization_marker
 
   # Visualization, publish marker and markerArray for RVIZ visualization
   visualization: true

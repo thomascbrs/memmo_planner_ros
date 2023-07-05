@@ -22,7 +22,7 @@ surface_planner:
   ###################
   ### PlaneSeg parameters for postprocessing, using SurfaceProcessingParams()
   plane_seg: false
-  
+
   # Extract the scene as a single .stl file to post-process with hpp-affordance --> extract_methodId=0
   # Extract the scene as a multiple .stl files --> extract_methodId=1
   extract_methodId: 0
@@ -33,7 +33,7 @@ surface_planner:
   margin_outer: 0.06  # Margin in [m] ouside the convex surfaces (collision avoidance)
   n_points: 8  # Maximum Number of points for for each convex surface
 
-  offset_z: -0.04 # Offset on the z-axis.
+  offset_z: 0.04 # Offset on the z-axis.
 
   # Method to remove the overlapping between surfaces :
   # 1. Run the list of surfaces starting with the lowest.
@@ -70,6 +70,8 @@ surface_planner:
   plane_seg_topic: /plane_seg/hull_marker_array
   initial_config: walkgen/initial_config # Initial configuration.
   initial_floor_height: walkgen/initial_floor_height # Initial floor height.
+  visualisation_mkarray_topic: surface_planner/visualization_marker_array
+  visualisation_mk_topic: surface_planner/visualization_marker
 
   # Visualization, publish marker and markerArray for RVIZ visualization
   visualization: true

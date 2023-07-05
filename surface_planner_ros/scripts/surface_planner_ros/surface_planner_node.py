@@ -58,7 +58,6 @@ from walkgen_surface_processing.params import SurfaceProcessingParams
 
 
 class SurfacePlannerNode():
-
     def __init__(self):
 
         # Define frames
@@ -152,7 +151,6 @@ class SurfacePlannerNode():
         self.params_surface_planner.recompute_slope = rospy.get_param("~recompute_slope")
         self.surface_planner = SurfacePlanner(self.params_surface_planner, RECORDING=self._RECORDING)
 
-
         if not self.plane_seg:
             self.first_set_surfaces = True  # Always available using plane_seg
             # Extract surfaces from URDF file.
@@ -166,7 +164,8 @@ class SurfacePlannerNode():
                 # Single file .stl
                 surface_detector = SurfaceDetector(
                     self.params_surface_processing.path + self.params_surface_processing.stl, R_, translation,
-                    self.params_surface_processing.margin_inner, "environment_", self.params_surface_processing.offset_z)
+                    self.params_surface_processing.margin_inner, "environment_",
+                    self.params_surface_processing.offset_z)
             else:
                 # Folder containing multiple .stl files.
                 surface_detector = SurfaceLoader(
@@ -177,10 +176,13 @@ class SurfacePlannerNode():
         # Visualization tools
         if self._visualization:
             self.world_visualization = WorldVisualization()
-            self.marker_pub = rospy.Publisher("surface_planner/visualization_marker", Marker, queue_size=10)
-            self.marker_array_pub = rospy.Publisher("surface_planner/visualization_marker_array",
-                                                    MarkerArray,
-                                                    queue_size=10)
+            # Visualisation
+            visuMkArray_topic = rospy.get_param("~visualisation_mkarray_topic")
+            visuMk_topic =  rospy.get_param("~visualisation_mk_topic")
+            self.marker_pub = rospy.Publisher(visuMk_topic, Marker, queue_size=10)
+            self.marker_array_pub = rospy.Publisher(visuMkArray_topic,
+                                                        MarkerArray,
+                                                        queue_size=10)
             if not self.plane_seg:  # Publish URDF environment
                 print("Publishing world...")
                 # self.world_visualization = WalkgenVisualizationPublisher()
@@ -193,7 +195,7 @@ class SurfacePlannerNode():
                 rospy.sleep(1.)  # Not working otherwise
 
                 msg = self.world_visualization.generate_world(worldMesh, worldPose, frame_id=self.world_frame)
-                if self.params_surface_processing.extract_mehtodId == 0 : # Publish only when using 1 single stl file.
+                if self.params_surface_processing.extract_mehtodId == 0:  # Publish only when using 1 single stl file.
                     self.marker_pub.publish(msg)
                     print("World published.")
 
@@ -229,12 +231,21 @@ class SurfacePlannerNode():
                                                           MarkerArray,
                                                           self.hull_marker_array_callback,
                                                           queue_size=10)
-            
+
+            from convex_plane_decomposition_msgs.msg import PlanarTerrain
+            # TODO only try to import when activate elevation map type
+
             self._elevation_map_topic = "/convex_plane_decomposition_ros/planar_terrain"
             self.elevation_map_sub = rospy.Subscriber(self._elevation_map_topic,
-                                                          MarkerArray,
-                                                          self.elevation_map_callback,
-                                                          queue_size=10)
+                                                      PlanarTerrain,
+                                                      self.elevation_map_callback,
+                                                      queue_size=10)
+            # TODO pass this as arguments
+            threshold = 0.001
+            polySize = 10
+            convexHoles = False
+            self.map_interface = ElevationMapInterface(threshold, polySize, DECOMPO_ALGO.Bayazit, convexHoles)
+
         self.footstep_manager_sub = rospy.Subscriber(self._footstep_manager_topic,
                                                      GaitStatusOnNewPhase,
                                                      self.footstep_manager_callback,
@@ -246,7 +257,7 @@ class SurfacePlannerNode():
         self._clearmap_srv = rospy.Service("walkgen/clearmap", Clearmap, self.clearmapService)
 
         # ROS timer
-        self.timer = rospy.Timer(rospy.Duration(0.005), self.timer_callback)
+        self.timer = rospy.Timer(rospy.Duration(0.002), self.timer_callback)
 
     def cmd_vel_callback(self, msg):
         self.cmd_vel[0] = msg.linear.x
@@ -270,21 +281,24 @@ class SurfacePlannerNode():
             surfaces = [np.array(value).T for key, value in self.surfaces_processed.items()]
             msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
             self.marker_array_pub.publish(msg)
-    
+
     def elevation_map_callback(self, msg):
         """ Filter and store incoming planes which are non-convex coming
         from elevation_map_cupy.
         """
-        t0 =clock()
+        t0 = clock()
         self.surfaces_processed = self.map_interface.process(msg)
         t1 = clock()
-        print("Process elevation map planes [ms] : ", 1000*(t1 - t0))
+        print("Process elevation map planes [ms] : ", 1000 * (t1 - t0))
 
         self.new_surfaces = True
         self.first_set_surfaces = True
         if self._visualization:
             surfaces = [np.array(value).T for key, value in self.surfaces_processed.items()]
             msg = self.world_visualization.generate_surfaces(surfaces, frame_id=self.world_frame)
+            print("PUBLISHING")
+            # from IPython import embed 
+            # embed()
             self.marker_array_pub.publish(msg)
 
     def footstep_manager_callback(self, msg):

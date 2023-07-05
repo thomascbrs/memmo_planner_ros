@@ -36,9 +36,10 @@ from visualization_msgs.msg import Marker, MarkerArray
 
 
 class WorldVisualization():
-
     def __init__(self):
         print()
+        self.offset = -0.036
+        self.previous_nb_surfaces = 0
 
     def generate_world(self, worldMesh, worldPose, frame_id="map"):
         """ Generate mesh as marker message.
@@ -80,7 +81,7 @@ class WorldVisualization():
         for id, vertices in enumerate(surfaces):
             marker = Marker()
             self._set_header(marker, id=id, frame_id=frame_id, ns="hull", lifetime=lifetime)
-            self._set_pose(marker, [0., 0., 0.], [0., 0., 0., 1.])
+            self._set_pose(marker, [0., 0., 0.], [0., 0., 0., 1.], True)
             self._set_color(marker, color)
             self._set_scale(marker, 3 * [0.01])
             marker.type = marker.LINE_STRIP
@@ -98,6 +99,21 @@ class WorldVisualization():
 
             # Add marker to markerArray
             msg.markers.append(marker)
+
+        current_nb_surfaces = len(msg.markers)
+
+        if self.previous_nb_surfaces > current_nb_surfaces:
+            for id in range(current_nb_surfaces, self.previous_nb_surfaces):
+                marker = Marker()
+                self._set_header(marker, id=id, frame_id=frame_id, ns="hull", lifetime=lifetime)
+                self._set_pose(marker, [0., 0., 0.], [0., 0., 0., 1.], True)
+                self._set_color(marker, color)
+                self._set_scale(marker, 3 * [0.01])
+                marker.type = marker.LINE_STRIP
+                marker.action = marker.DELETE
+                marker.frame_locked = True
+
+        self.previous_nb_surfaces = current_nb_surfaces
 
         return msg
 
@@ -175,12 +191,15 @@ class WorldVisualization():
         marker.ns = ns
         marker.lifetime = rospy.Duration(lifetime)
 
-    def _set_pose(self, marker, pose, orientation):
+    def _set_pose(self, marker, pose, orientation, offset=False):
         """ Set the pose (x7 position, orientation) for marker type msg.
         """
         marker.pose.position.x = pose[0]
         marker.pose.position.y = pose[1]
-        marker.pose.position.z = pose[2]
+        if offset:
+            marker.pose.position.z = pose[2] + self.offset
+        else:
+            marker.pose.position.z = pose[2]
         marker.pose.orientation.x = orientation[0]
         marker.pose.orientation.y = orientation[1]
         marker.pose.orientation.z = orientation[2]
