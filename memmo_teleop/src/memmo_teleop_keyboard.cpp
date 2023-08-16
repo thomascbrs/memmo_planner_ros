@@ -87,8 +87,11 @@ void MemmoTeleopKeyboard::run() {
   double ang_vel_y_ref = 0.0;
   double ang_vel_z_ref = 0.0;
 
+  // Handling Ctrl + C (disabled with terminal settings for real-time inputs).
+  bool keepRunning=true;
+
   try {
-    while (true) {
+    while (keepRunning) {
       char ch = std::getchar();
       switch (ch) {
         case 'w':
@@ -123,6 +126,14 @@ void MemmoTeleopKeyboard::run() {
           ang_vel_y_ref = 0.0;
           ang_vel_z_ref = 0.0;
           break;
+
+        case 3: // Ctrl + C
+          std::cout << "Ending program." << std::endl;
+          keepRunning = false;
+
+        case 27: // Esc key
+          std::cout << "Ending program." << std::endl;
+          keepRunning = false;
 
         default:
           break;
