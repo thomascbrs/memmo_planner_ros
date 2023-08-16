@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
   auto memmo_teleop_keyboard = memmo_teleop::MemmoTeleopKeyboard();
 
   // Update
-  ros::spin();
+  ros::spinOnce();
 
   // Shutdown
   ros::shutdown();
