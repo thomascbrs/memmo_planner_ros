@@ -53,6 +53,14 @@ MemmoTeleopKeyboard::MemmoTeleopKeyboard() : nh_(""), private_nh_("~") {
   // Initialize ROS publisher
   // TODO(JaehyunShim): Need more consideration on queue size
   cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("cmd_vel", 10);
+  cmd_gait_pub_ = nh_.advertise<std_msgs::Int32>("cmd_gait", 10);
+
+  // Commanded gait :
+  // --> [0] initial gait
+  // --> [1] Walk
+  // --> [2] Trot
+  cmd_gait_ = 0;
+  msg_.data = cmd_gait_;
 
   // Change terminal mode
   tcgetattr(0, &orig_termios_);
@@ -76,6 +84,7 @@ MemmoTeleopKeyboard::~MemmoTeleopKeyboard() {
 
   // Stop robot
   send_cmd_vel(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+  send_cmd_gait(0);
 }
 
 void MemmoTeleopKeyboard::run() {
@@ -130,15 +139,29 @@ void MemmoTeleopKeyboard::run() {
         case 3: // Ctrl + C
           std::cout << "Ending program." << std::endl;
           keepRunning = false;
+          break;
 
         case 27: // Esc key
           std::cout << "Ending program." << std::endl;
           keepRunning = false;
+          break;
+
+        case '0': // NumPad 0, initial config.
+          cmd_gait_ = 0;
+          break;
+
+        case '1': // NumPad 1, Walk.
+          cmd_gait_ = 1;
+          break;
+
+        case '2': // NumPad 2, Trot.
+          cmd_gait_ = 2;
+          break;
 
         default:
           break;
       }
-
+      send_cmd_gait(cmd_gait_);
       send_cmd_vel(lin_vel_x_ref, lin_vel_y_ref, lin_vel_z_ref, ang_vel_x_ref, ang_vel_y_ref, ang_vel_z_ref);
 
       // Print keyboard operation every 10 commands
@@ -177,7 +200,7 @@ void MemmoTeleopKeyboard::print_keyop() {
   ROS_INFO("ang_vel_x limit %.1lf\n", ang_vel_x_limit_);
   ROS_INFO("ang_vel_y limit %.1lf\n", ang_vel_y_limit_);
   ROS_INFO("ang_vel_z limit %.1lf\n", ang_vel_z_limit_);
-  ROS_INFO("\n");
+  ROS_INFO("\n\n\n");
 }
 
 // TODO(JaehyunShim): Add smoother
@@ -201,6 +224,21 @@ void MemmoTeleopKeyboard::send_cmd_vel(double vel_lin_x, double vel_lin_y, doubl
   ROS_INFO("vel_ang_x:: %.2lf\n", vel_ang_x);
   ROS_INFO("vel_ang_y: %.2lf\n", vel_ang_y);
   ROS_INFO("vel_ang_z: %.2lf\n", vel_ang_z);
+  ROS_INFO("\n\n\n");
+}
+
+void MemmoTeleopKeyboard::send_cmd_gait(const int cmd) {
+  msg_.data = cmd;
+  cmd_gait_pub_.publish(msg_);
+  // Check the value of cmd
+  if (cmd == 2) {
+    ROS_INFO("Next gait: trotting");
+  } else if (cmd == 1) {
+    ROS_INFO("Next gait: walking");
+  } else {
+    ROS_INFO("Next gait: initial gait");
+  }
+  ROS_INFO("\n");
 }
 
 // TODO(JaehyunShim): why has to be reference, not pointer..?

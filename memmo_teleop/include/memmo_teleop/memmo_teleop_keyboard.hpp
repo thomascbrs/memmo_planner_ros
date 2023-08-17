@@ -32,6 +32,7 @@
 
 #include <geometry_msgs/Twist.h>
 #include <ros/ros.h>
+#include <std_msgs/Int32.h>
 
 namespace memmo_teleop {
 class MemmoTeleopKeyboard {
@@ -64,8 +65,13 @@ class MemmoTeleopKeyboard {
   struct termios orig_termios_;
   struct termios new_termios_;
 
+  // Gait command
+  int cmd_gait_;
+  std_msgs::Int32 msg_;
+
   // ROS Publisher
   ros::Publisher cmd_vel_pub_;
+  ros::Publisher cmd_gait_pub_;
 
   // Update
   void run();
@@ -73,6 +79,7 @@ class MemmoTeleopKeyboard {
   // TODO(JaehyunShim): print_vel should be curr vel? or ref vel?
   void send_cmd_vel(double vel_lin_x, double vel_lin_y, double vel_lin_z, double vel_ang_x, double vel_ang_y,
                     double vel_ang_z);
+  void send_cmd_gait(const int cmd);
   double enforce_vel_limit(double vel, double limit);
 };
 }  // namespace memmo_teleop
